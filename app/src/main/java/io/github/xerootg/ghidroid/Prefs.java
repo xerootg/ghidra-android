@@ -95,6 +95,36 @@ final class Prefs {
         sp.edit().putBoolean("pureBlack", b).commit();
     }
 
+    /** Ghidra Server as host:port, pre-filled in Ghidra's shared project dialogs. Empty: none. */
+    String server() {
+        return sp.getString("server", "");
+    }
+
+    void setServer(String s) {
+        sp.edit().putString("server", s.trim()).commit();
+    }
+
+    /**
+     * User name Ghidra presents to a server (Java's user.name). Empty: the
+     * Android one (u0_aNNN), which a server will not know.
+     */
+    String userName() {
+        return sp.getString("userName", "");
+    }
+
+    void setUserName(String s) {
+        sp.edit().putString("userName", s.trim()).commit();
+    }
+
+    /** The user name Ghidra last ran with (to adopt its projects after a change). */
+    String lastUserName() {
+        return sp.getString("lastUserName", "");
+    }
+
+    void setLastUserName(String s) {
+        sp.edit().putString("lastUserName", s).commit();
+    }
+
     /** Show the floating key bar (Esc, Ctrl, Alt, ...). */
     boolean keyBar() {
         return sp.getBoolean("keyBar", true);

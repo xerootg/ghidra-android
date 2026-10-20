@@ -124,6 +124,9 @@ public final class MainActivity extends Activity {
             startActivity(i);
         });
 
+        col.addView(heading(getString(R.string.server_heading)));
+        addServerSettings(col);
+
         col.addView(heading(getString(R.string.settings)));
         addThemeSetting(col);
         addScaleSetting(col);
@@ -166,6 +169,81 @@ public final class MainActivity extends Activity {
         lp.topMargin = dp(8);
         parent.addView(b, lp);
         return b;
+    }
+
+    private EditText textSetting(LinearLayout col, int label, String value, String hint,
+            java.util.function.Consumer<String> save) {
+        TextView l = new TextView(this);
+        l.setText(label);
+        col.addView(l);
+        EditText e = new EditText(this);
+        e.setSingleLine(true);
+        e.setText(value);
+        e.setHint(hint);
+        e.setOnFocusChangeListener((v, has) -> {
+            if (!has) {
+                save.accept(e.getText().toString());
+            }
+        });
+        col.addView(e);
+        return e;
+    }
+
+    private void addServerSettings(LinearLayout col) {
+        EditText server = textSetting(col, R.string.server_label, prefs.server(), "192.168.1.10:13100",
+                prefs::setServer);
+        server.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_URI);
+        EditText user = textSetting(col, R.string.user_label, prefs.userName(), getString(R.string.user_hint),
+                prefs::setUserName);
+        TextView result = new TextView(this);
+        Button test = button(col, getString(R.string.server_test), null);
+        col.addView(result);
+        test.setOnClickListener(v -> {
+            prefs.setServer(server.getText().toString());
+            prefs.setUserName(user.getText().toString());
+            String s = prefs.server();
+            if (s.isEmpty()) {
+                result.setText(R.string.server_none);
+                return;
+            }
+            result.setText(R.string.server_testing);
+            worker.execute(() -> {
+                String msg = testServer(s);
+                ui.post(() -> result.setText(msg));
+            });
+        });
+        TextView note = new TextView(this);
+        note.setText(R.string.server_note);
+        note.setAlpha(0.7f);
+        col.addView(note);
+    }
+
+    /** Checks that the server's three ports answer (registry, SSL RMI, block stream). */
+    private String testServer(String server) {
+        String host = server;
+        int port = 13100;
+        int colon = server.lastIndexOf(':');
+        if (colon > 0) {
+            host = server.substring(0, colon);
+            try {
+                port = Integer.parseInt(server.substring(colon + 1));
+            } catch (NumberFormatException e) {
+                return getString(R.string.server_bad_port);
+            }
+        }
+        StringBuilder sb = new StringBuilder();
+        boolean all = true;
+        for (int p = port; p <= port + 2; p++) {
+            long t0 = System.nanoTime();
+            try (java.net.Socket sock = new java.net.Socket()) {
+                sock.connect(new java.net.InetSocketAddress(host, p), 3000);
+                sb.append(String.format(Locale.US, "✓ %d (%d ms)  ", p, (System.nanoTime() - t0) / 1_000_000));
+            } catch (java.io.IOException e) {
+                all = false;
+                sb.append(String.format(Locale.US, "✗ %d: %s  ", p, e.getMessage()));
+            }
+        }
+        return (all ? getString(R.string.server_ok) : getString(R.string.server_fail)) + "\n" + sb;
     }
 
     private void addThemeSetting(LinearLayout col) {

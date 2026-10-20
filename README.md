@@ -78,6 +78,25 @@ Theme changes apply to a running Ghidra immediately.
 The screen follows rotation, split screen, DeX windows and the soft keyboard;
 Ghidra's windows are re-laid out to fit.
 
+### Ghidra Server
+
+Shared projects on a [Ghidra Server](https://github.com/NationalSecurityAgency/ghidra/blob/master/Ghidra/RuntimeScripts/Common/server/svrREADME.md)
+work like they do on a desktop. The server has to run the same Ghidra
+major.minor version as the app. Under **Ghidra Server** on the start screen:
+
+- **Server**: `host:port` (port 13100 by default). Ghidra then offers it first
+  under File → New Project → Shared Project. The tablet must reach TCP ports
+  13100 to 13102, either on the LAN or over a VPN such as Tailscale.
+- **User name**: the name Ghidra presents to the server. Without it, Ghidra
+  uses Android's own user name (`u0_a123`), which no server knows. Servers
+  without passwords (no `-a` option) log you in by this name alone. With
+  `-a0`, Ghidra asks for the password as usual.
+- **Test connection** checks that the three ports answer.
+
+Server and user name apply the next time Ghidra starts. Local projects belong
+to the user name that created them, so set the user name before you create
+local projects.
+
 ### Dark mode
 
 The app adds two Ghidra themes, **Android Dark** and **Android Black**, both

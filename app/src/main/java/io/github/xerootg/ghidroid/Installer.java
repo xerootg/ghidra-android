@@ -163,6 +163,7 @@ final class Installer {
         writeText(fontConfig(), map.replace("@FONTS@", fonts.getAbsolutePath()));
         if (ghidraReady()) {
             linkExecutables();
+            freshenSla();
         }
         writeText(new File(files, "runtime.stamp"), apkStamp());
     }
@@ -256,6 +257,7 @@ final class Installer {
         deleteTree(stage);
         deleteTree(old);
         linkExecutables();
+        writeText(new File(ghidra, ".sla-fresh"), "");
     }
 
     /**
@@ -306,6 +308,17 @@ final class Installer {
      * Must run before the JVM starts: Ghidra rewrites the file on exit.
      */
     void prepareThemes(String locator) throws IOException {
+        prepareGhidraPrefs(locator, null);
+    }
+
+    /**
+     * Installs the app's themes and updates Ghidra's preferences before it
+     * starts: the theme (if {@code themeLocator} is non-null) and the most
+     * recent server, which the shared-project dialogs offer first (if
+     * {@code server} is non-empty, as host:port).
+     */
+    void prepareGhidraPrefs(String themeLocator, String server) throws IOException {
+        String locator = themeLocator;
         File dir = new File(ghidraSettingsDir(), "themes");
         dir.mkdirs();
         for (String name : ctx.getAssets().list("themes")) {
@@ -313,7 +326,8 @@ final class Installer {
                 copy(in, new File(dir, name));
             }
         }
-        if (locator == null) {
+        boolean hasServer = server != null && !server.isEmpty();
+        if (locator == null && !hasServer) {
             return;
         }
         File prefs = new File(ghidraSettingsDir(), "preferences");
@@ -323,9 +337,98 @@ final class Installer {
                 p.load(in);
             }
         }
-        p.setProperty("Theme", locator);
+        if (locator != null) {
+            p.setProperty("Theme", locator);
+        }
+        if (hasServer) {
+            p.setProperty("ServerInfo", server.contains(":") ? server : server + ":13100");
+        }
         try (OutputStream out = new FileOutputStream(prefs)) {
             p.store(out, "User Preferences");
+        }
+    }
+
+    // ---- project ownership -------------------------------------------------
+
+    /** Android's name for this app's user (u0_aNNN), Java's default user.name. */
+    static String androidUserName() {
+        // Same rule as bionic's getpwuid for app uids: u<user>_a<appId - 10000>.
+        int uid = android.os.Process.myUid();
+        return "u" + (uid / 100000) + "_a" + (uid % 100000 - 10000);
+    }
+
+    private static final Pattern OWNER = Pattern.compile(
+            "(<STATE NAME=\"OWNER\" TYPE=\"string\" VALUE=\")([^\"]*)(\" />)");
+
+    /**
+     * Local Ghidra projects only open for the user that owns them. When the
+     * user name changes, hand the projects owned by any of {@code from} to
+     * {@code to}, so they keep opening. Projects under home, two levels deep.
+     */
+    int adoptProjects(java.util.Set<String> from, String to) {
+        int n = 0;
+        java.util.ArrayDeque<File> todo = new java.util.ArrayDeque<>();
+        todo.add(home);
+        while (!todo.isEmpty()) {
+            File dir = todo.pop();
+            File[] kids = dir.listFiles();
+            if (kids == null) {
+                continue;
+            }
+            for (File k : kids) {
+                if (!k.isDirectory() || Files.isSymbolicLink(k.toPath())) {
+                    continue;
+                }
+                if (k.getName().endsWith(".rep")) {
+                    if (reown(new File(k, "project.prp"), from, to)) {
+                        n++;
+                    }
+                } else if (!k.getName().startsWith(".")
+                        && home.toPath().relativize(k.toPath()).getNameCount() < 2) {
+                    todo.add(k);
+                }
+            }
+        }
+        return n;
+    }
+
+    private static boolean reown(File prp, java.util.Set<String> from, String to) {
+        String xml = readText(prp);
+        if (xml == null) {
+            return false;
+        }
+        java.util.regex.Matcher m = OWNER.matcher(xml);
+        if (!m.find() || !from.contains(m.group(2)) || m.group(2).equals(to)) {
+            return false;
+        }
+        try {
+            writeText(prp, m.replaceFirst("$1" + java.util.regex.Matcher.quoteReplacement(to) + "$3") + "\n");
+            return true;
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Installs made before timestamps were kept have .slaspec files newer
+     * than the shipped .sla, so Ghidra recompiles every language on first
+     * use (minutes on a tablet). The shipped .sla are current; mark them so.
+     */
+    void freshenSla() {
+        File marker = new File(ghidra, ".sla-fresh");
+        if (marker.exists()) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        for (File f : listTree(new File(ghidra, "Ghidra/Processors"))) {
+            if (f.getName().endsWith(".sla")) {
+                f.setLastModified(now);
+            }
+        }
+        try {
+            writeText(marker, "");
+        } catch (IOException e) {
+            // Retried next time.
         }
     }
 
@@ -367,6 +470,11 @@ final class Installer {
                     while ((n = in.read(buf)) > 0) {
                         o.write(buf, 0, n);
                     }
+                }
+                // Keep the release's timestamps: Ghidra recompiles a
+                // language's .sla when its .slaspec looks newer.
+                if (e.getTime() > 0) {
+                    f.setLastModified(e.getTime());
                 }
                 if ((done & 63) == 0) {
                     p.update(what, done, total);

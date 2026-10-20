@@ -187,8 +187,21 @@ public final class GhidraActivity extends Activity implements Native.Host, Surfa
         }
         inst.home.mkdirs();
         inst.tmp.mkdirs();
+        // Keep local projects opening when the user name changes.
+        String android = Installer.androidUserName();
+        String user = prefs.userName().isEmpty() ? android : prefs.userName();
+        java.util.Set<String> previous = new java.util.HashSet<>();
+        previous.add(android);
+        if (!prefs.lastUserName().isEmpty()) {
+            previous.add(prefs.lastUserName());
+        }
+        int adopted = inst.adoptProjects(previous, user);
+        if (adopted > 0) {
+            Log.i(TAG, "projects now owned by " + user + ": " + adopted);
+        }
+        prefs.setLastUserName(user);
         try {
-            inst.prepareThemes(themeLocator(themeKind()));
+            inst.prepareGhidraPrefs(themeLocator(themeKind()), prefs.server());
         } catch (java.io.IOException e) {
             Log.w(TAG, "themes", e);
         }
@@ -223,6 +236,10 @@ public final class GhidraActivity extends Activity implements Native.Host, Surfa
         args.add("-Duser.dir=" + inst.home);
         args.add("-Djava.io.tmpdir=" + inst.tmp);
         args.add("-Duser.language=en");
+        if (!prefs.userName().isEmpty()) {
+            // Ghidra Server logins (without passwords) use this name.
+            args.add("-Duser.name=" + prefs.userName());
+        }
         args.add("-Duser.country=US");
         // posix_spawn needs jspawnhelper, which cannot be exec()ed from app storage.
         args.add("-Djdk.lang.Process.launchMechanism=FORK");
