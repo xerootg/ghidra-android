@@ -1,0 +1,39 @@
+# Ghidra for Android logical font map. @FONTS@ is replaced with the
+# absolute font directory by the launcher.
+version=1
+
+serif.plain.latin-1=DejaVu Serif
+serif.bold.latin-1=DejaVu Serif Bold
+serif.italic.latin-1=DejaVu Serif Italic
+serif.bolditalic.latin-1=DejaVu Serif Bold Italic
+sansserif.plain.latin-1=DejaVu Sans
+sansserif.bold.latin-1=DejaVu Sans Bold
+sansserif.italic.latin-1=DejaVu Sans Oblique
+sansserif.bolditalic.latin-1=DejaVu Sans Bold Oblique
+monospaced.plain.latin-1=DejaVu Sans Mono
+monospaced.bold.latin-1=DejaVu Sans Mono Bold
+monospaced.italic.latin-1=DejaVu Sans Mono Oblique
+monospaced.bolditalic.latin-1=DejaVu Sans Mono Bold Oblique
+dialog.plain.latin-1=DejaVu Sans
+dialog.bold.latin-1=DejaVu Sans Bold
+dialog.italic.latin-1=DejaVu Sans Oblique
+dialog.bolditalic.latin-1=DejaVu Sans Bold Oblique
+dialoginput.plain.latin-1=DejaVu Sans Mono
+dialoginput.bold.latin-1=DejaVu Sans Mono Bold
+dialoginput.italic.latin-1=DejaVu Sans Mono Oblique
+dialoginput.bolditalic.latin-1=DejaVu Sans Mono Bold Oblique
+
+sequence.allfonts=latin-1
+
+filename.DejaVu_Serif=@FONTS@/DejaVuSerif.ttf
+filename.DejaVu_Serif_Bold=@FONTS@/DejaVuSerif-Bold.ttf
+filename.DejaVu_Serif_Italic=@FONTS@/DejaVuSerif-Italic.ttf
+filename.DejaVu_Serif_Bold_Italic=@FONTS@/DejaVuSerif-BoldItalic.ttf
+filename.DejaVu_Sans=@FONTS@/DejaVuSans.ttf
+filename.DejaVu_Sans_Bold=@FONTS@/DejaVuSans-Bold.ttf
+filename.DejaVu_Sans_Oblique=@FONTS@/DejaVuSans-Oblique.ttf
+filename.DejaVu_Sans_Bold_Oblique=@FONTS@/DejaVuSans-BoldOblique.ttf
+filename.DejaVu_Sans_Mono=@FONTS@/DejaVuSansMono.ttf
+filename.DejaVu_Sans_Mono_Bold=@FONTS@/DejaVuSansMono-Bold.ttf
+filename.DejaVu_Sans_Mono_Oblique=@FONTS@/DejaVuSansMono-Oblique.ttf
+filename.DejaVu_Sans_Mono_Bold_Oblique=@FONTS@/DejaVuSansMono-BoldOblique.ttf

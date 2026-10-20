@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+
+    <!--
+      HotSpot keeps its own pointer bits, so heap pointer tagging must be off;
+      the decompiler executables are extracted (useLegacyPackaging) so exec() works.
+    -->
+    <application
+        android:allowBackup="false"
+        android:allowNativeHeapPointerTagging="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:largeHeap="true"
+        android:enableOnBackInvokedCallback="true"
+        android:resizeableActivity="true"
+        android:theme="@style/Theme.Ghidroid">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter android:label="@string/open_in_ghidra">
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
+            <intent-filter android:label="@string/open_in_ghidra">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:mimeType="application/octet-stream" />
+                <data android:mimeType="application/x-executable" />
+                <data android:mimeType="application/x-sharedlib" />
+                <data android:mimeType="application/vnd.android.package-archive" />
+                <data android:mimeType="application/x-msdownload" />
+            </intent-filter>
+        </activity>
+
+        <!-- Ghidra and its JVM live in their own process; exiting Ghidra ends it. -->
+        <activity
+            android:name=".GhidraActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|density|uiMode|fontScale"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:process=":ghidra"
+            android:taskAffinity="io.github.xerootg.ghidroid.ghidra"
+            android:theme="@style/Theme.Ghidroid.Fullscreen"
+            android:windowSoftInputMode="adjustResize|stateHidden" />
+
+        <service
+            android:name=".GhidraService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse"
+            android:process=":ghidra">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Keeps the Ghidra JVM and open analysis alive while the app is in the background." />
+        </service>
+    </application>
+</manifest>

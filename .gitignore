@@ -1,0 +1,13 @@
+.cache/
+.gradle/
+build/
+local.properties
+*.iml
+.idea/
+app/src/main/assets/
+app/src/main/jniLibs/
+app/src/main/cpp/stubs/
+toolkit/build/
+hs_err_pid*.log
+core.*
+app/.cxx/

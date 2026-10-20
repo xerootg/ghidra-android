@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Ghidra for Android</string>
+    <string name="open_in_ghidra">Open in Ghidra</string>
+    <string name="launch">Launch Ghidra</string>
+    <string name="download">Download Ghidra %1$s (≈570 MB)</string>
+    <string name="install_zip">Install Ghidra from a release zip…</string>
+    <string name="storage_access">Allow access to all files (to import from storage)</string>
+    <string name="settings">Settings</string>
+    <string name="scale_label">Display scale: %1$s× (default %2$.2f×). Takes effect when Ghidra starts.</string>
+    <string name="heap_label">Java heap: %1$d MB</string>
+    <string name="jvm_args">Extra JVM arguments</string>
+    <string name="keybar_on">Key bar: shown</string>
+    <string name="keybar_off">Key bar: hidden</string>
+    <string name="show_log">Show Ghidra log</string>
+    <string name="no_log">No log yet.</string>
+    <string name="runtime_ok">✓ Java runtime installed</string>
+    <string name="runtime_missing">… Java runtime not installed yet</string>
+    <string name="ghidra_ok">✓ Ghidra %1$s installed</string>
+    <string name="ghidra_missing">✗ Ghidra not installed: download it or install a release zip</string>
+    <string name="storage_ok">✓ All-files access granted</string>
+    <string name="storage_missing">– No all-files access: Ghidra can only see its own folder</string>
+    <string name="not_installed">Ghidra is not installed yet.</string>
+    <string name="imported_title">File copied for Ghidra</string>
+    <string name="imported_text">Copied to\n%1$s\n\nIn Ghidra, use File → Import File and open the imports folder in your home directory.</string>
+    <string name="channel_running">Ghidra running</string>
+    <string name="running_title">Ghidra is running</string>
+    <string name="running_text">Tap to return to Ghidra.</string>
+    <string name="about">Ghidra is developed by the NSA and released under the Apache License 2.0. This app runs the unmodified Ghidra release on an Android build of OpenJDK 21, with an AWT toolkit based on Caciocavallo. It is not affiliated with the NSA.</string>
+</resources>
