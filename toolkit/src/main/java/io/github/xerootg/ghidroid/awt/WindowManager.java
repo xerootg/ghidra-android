@@ -23,6 +23,8 @@ import javax.swing.text.JTextComponent;
  */
 final class WindowManager {
 
+    private static final long KEYBOARD_TAP_NANOS = 600_000_000L;
+
     private WindowManager() {
     }
 
@@ -36,7 +38,14 @@ final class WindowManager {
         int id = e.getID();
         if (id == FocusEvent.FOCUS_GAINED || id == FocusEvent.FOCUS_LOST) {
             if (e.getSource() instanceof JTextComponent t) {
-                Bridge.textFocus(id == FocusEvent.FOCUS_GAINED && t.isEditable());
+                if (id == FocusEvent.FOCUS_LOST) {
+                    Bridge.textFocus(false);
+                } else if (t.isEditable() && Input.pressedOn(t, KEYBOARD_TAP_NANOS)) {
+                    // Only when the user tapped into the field: Ghidra moves
+                    // focus to text fields on its own all the time (filters,
+                    // dialogs), and the soft keyboard covers half the screen.
+                    Bridge.textFocus(true);
+                }
             }
             return;
         }
@@ -117,6 +126,47 @@ final class WindowManager {
         w.setBounds(r);
         w.validate();
         w.repaint();
+    }
+
+    /**
+     * Shows a menu of the open windows at the top of the screen. Every
+     * frame fills the screen, so this is the only way to reach the ones
+     * underneath.
+     */
+    static void showWindowSwitcher() {
+        javax.swing.JPopupMenu menu = new javax.swing.JPopupMenu();
+        Window top = null;
+        for (Window w : Window.getWindows()) {
+            if (!w.isShowing() || w instanceof com.github.caciocavallosilano.cacio.peer.ProxyWindow
+                    || w.getWidth() == 0) {
+                continue;
+            }
+            if (!(w instanceof Frame) && !(w instanceof Dialog)) {
+                continue;
+            }
+            String title = w instanceof Frame f ? f.getTitle() : ((Dialog) w).getTitle();
+            if (title == null || title.isBlank()) {
+                title = w.getClass().getSimpleName();
+            }
+            javax.swing.JMenuItem item = new javax.swing.JMenuItem(title);
+            item.addActionListener(e -> {
+                w.toFront();
+                w.requestFocus();
+                exposeAll();
+            });
+            menu.add(item);
+            if (w.isFocused() || top == null) {
+                top = w;
+            }
+        }
+        if (top == null) {
+            return;
+        }
+        Rectangle screen = Display.getBounds();
+        java.awt.Dimension d = menu.getPreferredSize();
+        java.awt.Point p = new java.awt.Point((screen.width - d.width) / 2, 40);
+        javax.swing.SwingUtilities.convertPointFromScreen(p, top);
+        menu.show(top, p.x, p.y);
     }
 
     static void screenResized(int width, int height) {

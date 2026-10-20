@@ -100,6 +100,23 @@ abstract class AbstractManagedWindowContainer
         }
     }
 
+    /** Ghidra for Android: window stacking (children are bottom to top). */
+    final void restack(ManagedWindow child, boolean toFront) {
+        if (!children.remove(child)) {
+            return;
+        }
+        if (toFront) {
+            children.addLast(child);
+        } else {
+            children.addFirst(child);
+        }
+        for (ManagedWindow c : children) {
+            if (c.isVisible()) {
+                c.getCacioComponent().getAWTComponent().repaint();
+            }
+        }
+    }
+
     @Override
     public final LinkedList<ManagedWindow> getChildren() {
         return children;

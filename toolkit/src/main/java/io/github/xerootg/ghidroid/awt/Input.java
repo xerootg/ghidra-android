@@ -38,6 +38,8 @@ public final class Input {
     public static final int LEAVE = 9;
     /** The surface was recreated; send a frame even if nothing changed. */
     public static final int REDRAW = 10;
+    /** Shows the window switcher. */
+    public static final int WINDOWS = 30;
     /** Prints the window and component tree to stdout. */
     public static final int DEBUG_DUMP = 99;
 
@@ -60,6 +62,17 @@ public final class Input {
     private static long lastPressTime;
     private static int lastPressX, lastPressY, lastPressButton;
     private static int clickCount;
+    private static volatile long lastPressNanos;
+
+    /** True if a pointer was pressed on {@code c} in the last {@code nanos}. */
+    static boolean pressedOn(java.awt.Component c, long nanos) {
+        if (System.nanoTime() - lastPressNanos >= nanos || !c.isShowing()) {
+            return false;
+        }
+        java.awt.Point p = c.getLocationOnScreen();
+        return lastPressX >= p.x && lastPressY >= p.y
+                && lastPressX < p.x + c.getWidth() && lastPressY < p.y + c.getHeight();
+    }
 
     private Input() {
     }
@@ -94,6 +107,9 @@ public final class Input {
                 break;
             case REDRAW:
                 Display.markDirty();
+                break;
+            case WINDOWS:
+                java.awt.EventQueue.invokeLater(WindowManager::showWindowSwitcher);
                 break;
             case DEBUG_DUMP:
                 java.awt.EventQueue.invokeLater(Input::dumpWindows);
@@ -202,6 +218,7 @@ public final class Input {
             move(nx, ny, mods);
         }
         long now = System.nanoTime();
+        lastPressNanos = now;
         boolean multi = now - lastPressTime < MULTI_CLICK_NANOS
                 && button == lastPressButton
                 && Math.abs(nx - lastPressX) <= CLICK_SLOP

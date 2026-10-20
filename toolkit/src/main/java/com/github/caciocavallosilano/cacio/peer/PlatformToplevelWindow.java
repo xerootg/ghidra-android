@@ -98,4 +98,12 @@ public interface PlatformToplevelWindow extends PlatformWindow {
      */
     void setBlocked(boolean blocked);
 
+
+    /** Ghidra for Android: raises the window above its siblings. */
+    default void toFront() {
+    }
+
+    /** Ghidra for Android: lowers the window below its siblings. */
+    default void toBack() {
+    }
 }

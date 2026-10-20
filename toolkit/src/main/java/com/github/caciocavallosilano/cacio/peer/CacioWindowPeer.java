@@ -25,6 +25,7 @@
 
 package com.github.caciocavallosilano.cacio.peer;
 
+
 import java.awt.AWTEvent;
 import java.awt.Color;
 import java.awt.Component;
@@ -191,13 +192,11 @@ class CacioWindowPeer extends CacioContainerPeer<Window, JRootPane>
     }
 
     public void toBack() {
-        // TODO Auto-generated method stub
-
+        getToplevelWindow().toBack();
     }
 
     public void toFront() {
-        // TODO Auto-generated method stub
-
+        getToplevelWindow().toFront();
     }
 
     public void updateFocusableWindowState() {

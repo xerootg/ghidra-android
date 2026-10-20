@@ -80,6 +80,11 @@ final class Installer {
         return new File(files, "toolkit.jar");
     }
 
+    /** javac and the ToolProvider patch (for Ghidra scripts). */
+    File javacDir() {
+        return new File(files, "javac");
+    }
+
     File fontsDir() {
         return new File(files, "fonts");
     }
@@ -135,6 +140,14 @@ final class Installer {
         p.update("Installing toolkit and fonts", 0, 0);
         try (InputStream in = ctx.getAssets().open("toolkit.jar")) {
             copy(in, toolkitJar());
+        }
+        File javac = javacDir();
+        deleteTree(javac);
+        javac.mkdirs();
+        for (String name : ctx.getAssets().list("javac")) {
+            try (InputStream in = ctx.getAssets().open("javac/" + name)) {
+                copy(in, new File(javac, name));
+            }
         }
         File fonts = fontsDir();
         fonts.mkdirs();

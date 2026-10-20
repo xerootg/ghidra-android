@@ -11,3 +11,4 @@ toolkit/build/
 hs_err_pid*.log
 core.*
 app/.cxx/
+compiler-patch/build/

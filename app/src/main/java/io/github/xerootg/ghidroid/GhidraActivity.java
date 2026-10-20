@@ -176,6 +176,15 @@ public final class GhidraActivity extends Activity implements Native.Host, Surfa
         args.add("-Xss8m");
         args.add("--patch-module");
         args.add("java.desktop=" + inst.toolkitJar());
+        // javac lives on the class path (see compiler-patch/README.md).
+        File javac = inst.javacDir();
+        args.add("--patch-module");
+        args.add("java.compiler=" + new File(javac, "compiler-patch.jar"));
+        for (String pkg : new String[] { "jdk.internal.javac", "jdk.internal.jmod",
+                "jdk.internal.misc", "sun.invoke.util", "sun.reflect.annotation" }) {
+            args.add("--add-exports");
+            args.add("java.base/" + pkg + "=ALL-UNNAMED");
+        }
         args.add("-Dghidroid.backend=android:" + new File(inst.nativeLibDir(), "libghidroid.so"));
         args.add("-Dcacio.managed.screensize=" + w + "x" + h);
         args.add("-Dghidroid.fonts=" + inst.fontsDir());
@@ -204,7 +213,9 @@ public final class GhidraActivity extends Activity implements Native.Host, Surfa
             }
         }
         args.add("-cp");
-        args.add(new File(inst.ghidra, "Ghidra/Framework/Utility/lib/Utility.jar").getPath());
+        args.add(new File(inst.ghidra, "Ghidra/Framework/Utility/lib/Utility.jar").getPath()
+                + File.pathSeparator + new File(javac, "jdk.compiler.jar")
+                + File.pathSeparator + new File(javac, "jdk.internal.opt.jar"));
         args.add("ghidra.Ghidra");
         args.add("ghidra.GhidraRun");
         Log.i(TAG, "JVM args: " + args);
@@ -291,6 +302,7 @@ public final class GhidraActivity extends Activity implements Native.Host, Surfa
 
         Button kb = barButton("⌨", v -> showKeyboard(true));
         bar.addView(kb);
+        bar.addView(barButton("Windows", v -> Native.pushEvent(ScreenView.WINDOWS, 0, 0, 0, 0)));
         bar.addView(barButton("Esc", v -> screen.tapKey(KeyMap.VK_ESCAPE, 0x1b)));
         bar.addView(barButton("Tab", v -> screen.tapKey(KeyMap.VK_TAB, '\t')));
         bar.addView(modButton("Ctrl", KeyMap.CTRL_DOWN));

@@ -409,6 +409,25 @@ class ManagedWindow
         // TODO: Implement this.
     }
 
+    /** Ghidra for Android: raise above sibling windows and take focus. */
+    @Override
+    public void toFront() {
+        if (parent instanceof AbstractManagedWindowContainer c) {
+            c.restack(this, true);
+        }
+        if (parent instanceof ManagedWindow p) {
+            p.toFront();
+        }
+        FocusManager.getInstance().mousePressed(this);
+    }
+
+    @Override
+    public void toBack() {
+        if (parent instanceof AbstractManagedWindowContainer c) {
+            c.restack(this, false);
+        }
+    }
+
     @Override
     public void setBlocked(boolean blocked) {
         // TODO: Implement this.

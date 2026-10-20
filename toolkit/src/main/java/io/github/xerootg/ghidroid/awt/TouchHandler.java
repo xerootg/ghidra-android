@@ -226,6 +226,10 @@ final class TouchHandler {
         // Later windows are on top in Cacio's stacking.
         for (int i = windows.length - 1; i >= 0; i--) {
             Window w = windows[i];
+            // Cacio draws decorations with a ProxyWindow over each real window.
+            if (w instanceof com.github.caciocavallosilano.cacio.peer.ProxyWindow) {
+                continue;
+            }
             if (w.isShowing() && w.getBounds().contains(x, y)) {
                 Point p = new Point(x, y);
                 SwingUtilities.convertPointFromScreen(p, w);

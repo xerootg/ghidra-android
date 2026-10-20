@@ -23,13 +23,15 @@ GHIDRA_TAG="${GHIDRA_TAG:-Ghidra_12.1.4_build}"
 JRE_URL="https://github.com/AngelAuraMC/angelauramc-openjdk-build/releases/download/download_jre21/jre21-android-arm64.tar.xz"
 JRE_SHA256="${JRE_SHA256:-}"
 FONTS_URL="https://github.com/dejavu-fonts/dejavu-fonts/releases/download/version_2_37/dejavu-fonts-ttf-2.37.zip"
+# javac for Ghidra scripts, from the JDK release matching the Android JRE.
+JDK_URL="https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.1%2B12/OpenJDK21U-jdk_aarch64_linux_hotspot_21.0.1_12.tar.gz"
 NDK_VERSION="${NDK_VERSION:-29.0.14206865}"
 API=31
 
 fetch() { # url dest
     if [ ! -s "$2" ]; then
         echo "fetch $1"
-        curl -fL --retry 4 -o "$2.part" "$1"
+        curl -fsSL --retry 4 -o "$2.part" "$1"
         mv "$2.part" "$2"
     fi
 }
@@ -63,6 +65,20 @@ cp "$cache/jre-stage/jre/lib/libawt_headless.so" "$stubs/"
 rm -f "$assets/toolkit.jar"
 (cd "$root/toolkit/build/classes" && jar --create --file "$assets/toolkit.jar" .)
 cp "$root/toolkit/fontconfig.properties.in" "$assets/"
+
+# --- javac (Ghidra compiles its Java scripts) -------------------------------
+fetch "$JDK_URL" "$cache/temurin-21.0.1-aarch64.tar.gz"
+rm -rf "$cache/javac-stage" "$assets/javac" && mkdir -p "$cache/javac-stage" "$assets/javac"
+tar -xzf "$cache/temurin-21.0.1-aarch64.tar.gz" -C "$cache/javac-stage" --strip-components=1 \
+    --wildcards '*/jmods/jdk.compiler.jmod' '*/jmods/jdk.internal.opt.jmod'
+for m in jdk.compiler jdk.internal.opt; do
+    jmod extract --dir "$cache/javac-stage/$m" "$cache/javac-stage/jmods/$m.jmod"
+    (cd "$cache/javac-stage/$m/classes" && jar --create --file "$assets/javac/$m.jar" .)
+done
+rm -rf "$root/compiler-patch/build" && mkdir -p "$root/compiler-patch/build"
+javac -nowarn --release 21 --patch-module java.compiler="$root/compiler-patch/src" \
+    -d "$root/compiler-patch/build" "$root/compiler-patch/src/javax/tools/ToolProvider.java"
+(cd "$root/compiler-patch/build" && jar --create --file "$assets/javac/compiler-patch.jar" .)
 
 # --- fonts -------------------------------------------------------------------
 fetch "$FONTS_URL" "$cache/dejavu-fonts-ttf-2.37.zip"
