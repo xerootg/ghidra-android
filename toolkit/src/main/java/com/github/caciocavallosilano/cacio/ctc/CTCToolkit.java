@@ -217,6 +217,17 @@ public class CTCToolkit extends CacioToolkit {
         return null;
     }
 
+    /* Ghidra for Android: custom cursors (JUNG's graph cursors need a size). */
+    @Override
+    public java.awt.Dimension getBestCursorSize(int preferredWidth, int preferredHeight) {
+        return new java.awt.Dimension(Math.max(preferredWidth, 32), Math.max(preferredHeight, 32));
+    }
+
+    @Override
+    public int getMaximumCursorColors() {
+        return 256;
+    }
+
     @Override
     public boolean isTaskbarSupported() {
         return false;

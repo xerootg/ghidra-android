@@ -1,0 +1,69 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    env:
+      NDK_VERSION: 29.0.14206865
+      KEYSTORE_B64: ${{ secrets.GHIDROID_KEYSTORE_B64 }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Android SDK and NDK
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0" "ndk;$NDK_VERSION" "cmake;3.22.1" >/dev/null
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
+
+      - name: Cache downloads
+        uses: actions/cache@v4
+        with:
+          path: |
+            .cache/*.tar.xz
+            .cache/*.tar.gz
+            .cache/*.zip
+          key: deps-${{ hashFiles('scripts/prepare.sh') }}
+
+      - name: Prepare runtime and native tools
+        run: scripts/prepare.sh
+
+      - name: Signing key
+        if: env.KEYSTORE_B64 != ''
+        run: |
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          echo "GHIDROID_KEYSTORE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+
+      - name: Build APK
+        env:
+          GHIDROID_KEYSTORE_PASSWORD: ${{ secrets.GHIDROID_KEYSTORE_PASSWORD }}
+          GHIDROID_KEY_ALIAS: ${{ secrets.GHIDROID_KEY_ALIAS }}
+        run: |
+          ./gradlew --no-daemon assembleRelease
+          mkdir -p out
+          cp app/build/outputs/apk/release/app-release.apk "out/ghidra-android-${GITHUB_REF_NAME//\//-}.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ghidra-android-apk
+          path: out/*.apk
+
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" out/*.apk --title "$GITHUB_REF_NAME" --generate-notes
