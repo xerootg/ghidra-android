@@ -40,6 +40,8 @@ public final class Input {
     public static final int REDRAW = 10;
     /** Shows the window switcher. */
     public static final int WINDOWS = 30;
+    /** Switches Ghidra's theme: a = {@link GhidraTheme} kind. */
+    public static final int THEME = 31;
     /** Prints the window and component tree to stdout. */
     public static final int DEBUG_DUMP = 99;
 
@@ -108,6 +110,9 @@ public final class Input {
             case REDRAW:
                 Display.markDirty();
                 break;
+            case THEME:
+                GhidraTheme.apply(a);
+                break;
             case WINDOWS:
                 java.awt.EventQueue.invokeLater(WindowManager::showWindowSwitcher);
                 break;
@@ -138,6 +143,9 @@ public final class Input {
     }
 
     private static void dumpWindows() {
+        System.out.println("UI TitlePane.background=" + javax.swing.UIManager.getColor("TitlePane.background")
+                + " Panel.background=" + javax.swing.UIManager.getColor("Panel.background")
+                + " laf=" + javax.swing.UIManager.getLookAndFeel());
         for (java.awt.Window w : java.awt.Window.getWindows()) {
             dump(w, 0, 7);
         }
@@ -145,6 +153,8 @@ public final class Input {
 
     private static void dump(java.awt.Component c, int depth, int max) {
         System.out.println("  ".repeat(depth) + c.getClass().getName() + " " + c.getBounds()
+                + " bg=" + (c.isBackgroundSet() ? c.getBackground() : "-")
+                + (c instanceof javax.swing.JComponent j && j.isOpaque() ? " opaque" : "")
                 + (c.isVisible() ? "" : " HIDDEN") + (c.isValid() ? "" : " INVALID")
                 + (c.isShowing() ? "" : " notShowing"));
         if (depth < max && c instanceof java.awt.Container k) {

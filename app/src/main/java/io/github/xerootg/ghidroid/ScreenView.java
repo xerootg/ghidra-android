@@ -29,7 +29,7 @@ final class ScreenView extends SurfaceView {
     // Input event types; must match io.github.xerootg.ghidroid.awt.Input.
     static final int MOVE = 1, PRESS = 2, RELEASE = 3, WHEEL = 4, KEY_DOWN = 5, KEY_UP = 6,
             TYPED = 7, RESIZE = 8, LEAVE = 9, TOUCH_DOWN = 20, TOUCH_MOVE = 21, TOUCH_UP = 22,
-            TOUCH_CANCEL = 23, TOUCH_SCROLL = 24, TOUCH_FLING = 25, WINDOWS = 30;
+            TOUCH_CANCEL = 23, TOUCH_SCROLL = 24, TOUCH_FLING = 25, WINDOWS = 30, THEME = 31;
     static final int BUTTON1 = 1, BUTTON2 = 2, BUTTON3 = 3;
 
     /** Pen input suppresses finger input for this long (palm rejection). */

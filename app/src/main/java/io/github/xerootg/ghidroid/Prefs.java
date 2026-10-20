@@ -73,6 +73,28 @@ final class Prefs {
         sp.edit().putString("jvmArgs", s).apply();
     }
 
+    /** Ghidra theme: follow Android's dark mode, always dark/light, or leave it to Ghidra. */
+    static final String THEME_SYSTEM = "system", THEME_DARK = "dark", THEME_LIGHT = "light",
+            THEME_GHIDRA = "ghidra";
+
+    String themeMode() {
+        return sp.getString("themeMode", THEME_SYSTEM);
+    }
+
+    void setThemeMode(String m) {
+        // commit, not apply: the :ghidra process reads it right after.
+        sp.edit().putString("themeMode", m).commit();
+    }
+
+    /** Use the true-black (OLED) dark theme. */
+    boolean pureBlack() {
+        return sp.getBoolean("pureBlack", false);
+    }
+
+    void setPureBlack(boolean b) {
+        sp.edit().putBoolean("pureBlack", b).commit();
+    }
+
     /** Show the floating key bar (Esc, Ctrl, Alt, ...). */
     boolean keyBar() {
         return sp.getBoolean("keyBar", true);

@@ -65,6 +65,7 @@ cp "$cache/jre-stage/jre/lib/libawt_headless.so" "$stubs/"
 rm -f "$assets/toolkit.jar"
 (cd "$root/toolkit/build/classes" && jar --create --file "$assets/toolkit.jar" .)
 cp "$root/toolkit/fontconfig.properties.in" "$assets/"
+rm -rf "$assets/themes" && cp -r "$root/themes" "$assets/themes"
 
 # --- javac (Ghidra compiles its Java scripts) -------------------------------
 fetch "$JDK_URL" "$cache/temurin-21.0.1-aarch64.tar.gz"

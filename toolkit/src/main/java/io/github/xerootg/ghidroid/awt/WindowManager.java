@@ -88,6 +88,7 @@ final class WindowManager {
                 if (!w.isValid()) {
                     w.validate();
                 }
+                com.github.caciocavallosilano.cacio.peer.PeerAccess.repaintDecorations(w);
                 w.repaint();
             }
         }

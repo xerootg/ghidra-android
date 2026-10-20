@@ -432,6 +432,25 @@ class CacioComponentPeer<AWTComponentType extends Component,
 
     }
 
+    /**
+     * Ghidra for Android: repaints the peer's own Swing rendering (for
+     * windows, the title bar and border). Swing repaints of the AWT component
+     * never reach it. Call on the EDT.
+     */
+    static void repaintPeer(Component c) {
+        Object peer = AWTAccessor.getComponentAccessor().getPeer(c);
+        if (peer instanceof CacioComponentPeer<?, ?> cp && cp.swingComponent != null && c.isShowing()) {
+            // Not getGraphics(): that clips away the insets, where the
+            // decorations are.
+            Graphics g = cp.getGraphicsImpl();
+            try {
+                cp.peerPaint(g, false);
+            } finally {
+                g.dispose();
+            }
+        }
+    }
+
     protected void peerRepaint(int x, int y, int width, int height) {
         if (EventQueue.isDispatchThread()) {
               Graphics g = awtComponent.getGraphics();

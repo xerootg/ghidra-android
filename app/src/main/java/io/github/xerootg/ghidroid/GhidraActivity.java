@@ -50,6 +50,20 @@ public final class GhidraActivity extends Activity implements Native.Host, Surfa
 
     private static final String TAG = "ghidroid";
 
+    /** Sent by MainActivity when the theme settings change. */
+    static final String ACTION_THEME_CHANGED = "io.github.xerootg.ghidroid.THEME_CHANGED";
+
+    private final android.content.BroadcastReceiver themeReceiver = new android.content.BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            prefs = new Prefs(GhidraActivity.this);
+            int kind = themeKind();
+            if (jvmStarted && kind != THEME_NONE) {
+                Native.pushEvent(ScreenView.THEME, kind, 0, 0, 0);
+            }
+        }
+    };
+
     /** The JVM can only be started once per process. */
     private static boolean jvmStarted;
 
@@ -69,6 +83,7 @@ public final class GhidraActivity extends Activity implements Native.Host, Surfa
         super.onCreate(savedInstanceState);
         prefs = new Prefs(this);
         scale = prefs.scale();
+        lastNight = systemNight() ? 1 : 0;
         Native.setHost(this);
 
         FrameLayout root = new FrameLayout(this);
@@ -114,6 +129,9 @@ public final class GhidraActivity extends Activity implements Native.Host, Surfa
         // Back gestures (no key event) close dialogs and menus in Ghidra too.
         getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
                 OnBackInvokedDispatcher.PRIORITY_DEFAULT, () -> screen.tapKey(KeyMap.VK_ESCAPE, 0x1b));
+
+        registerReceiver(themeReceiver, new android.content.IntentFilter(ACTION_THEME_CHANGED),
+                Context.RECEIVER_NOT_EXPORTED);
 
         Intent svc = new Intent(this, GhidraService.class);
         startForegroundService(svc);
@@ -169,6 +187,11 @@ public final class GhidraActivity extends Activity implements Native.Host, Surfa
         }
         inst.home.mkdirs();
         inst.tmp.mkdirs();
+        try {
+            inst.prepareThemes(themeLocator(themeKind()));
+        } catch (java.io.IOException e) {
+            Log.w(TAG, "themes", e);
+        }
         List<String> args = new ArrayList<>();
         args.add("java");
         args.add("-Xmx" + prefs.heapMb() + "m");
@@ -191,6 +214,9 @@ public final class GhidraActivity extends Activity implements Native.Host, Surfa
         args.add("-Dghidroid.defaultFont=" + new File(inst.fontsDir(), "DejaVuSans.ttf"));
         args.add("-Dsun.awt.fontconfig=" + inst.fontConfig());
         args.add("-Djava.awt.headless=false");
+        args.add("-Dghidroid.theme.dark=" + inst.themeFile(Installer.THEME_DARK_FILE));
+        args.add("-Dghidroid.theme.black=" + inst.themeFile(Installer.THEME_BLACK_FILE));
+        args.add("-Dghidroid.theme.light=" + Installer.THEME_LIGHT_CLASS);
         args.add("-Djava.system.class.loader=ghidra.GhidraClassLoader");
         args.add("-Dfile.encoding=UTF8");
         args.add("-Duser.home=" + inst.home);
@@ -223,15 +249,66 @@ public final class GhidraActivity extends Activity implements Native.Host, Surfa
     }
 
     @Override
+    protected void onDestroy() {
+        unregisterReceiver(themeReceiver);
+        super.onDestroy();
+    }
+
+    @Override
     @SuppressWarnings("deprecation")
     public void onBackPressed() {
         screen.tapKey(KeyMap.VK_ESCAPE, 0x1b);
     }
 
+    // ---- theme ------------------------------------------------------------------
+
+    private static final int THEME_LIGHT = 0, THEME_DARK = 1, THEME_BLACK = 2, THEME_NONE = -1;
+    private int lastNight = -1;
+
+    private boolean systemNight() {
+        return (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK)
+                == Configuration.UI_MODE_NIGHT_YES;
+    }
+
+    /** The theme to use now, or THEME_NONE to leave Ghidra's own choice alone. */
+    private int themeKind() {
+        int dark = prefs.pureBlack() ? THEME_BLACK : THEME_DARK;
+        switch (prefs.themeMode()) {
+            case Prefs.THEME_DARK:
+                return dark;
+            case Prefs.THEME_LIGHT:
+                return THEME_LIGHT;
+            case Prefs.THEME_GHIDRA:
+                return THEME_NONE;
+            default:
+                return systemNight() ? dark : THEME_LIGHT;
+        }
+    }
+
+    private String themeLocator(int kind) {
+        Installer inst = new Installer(this);
+        switch (kind) {
+            case THEME_DARK:
+                return "File:" + inst.themeFile(Installer.THEME_DARK_FILE);
+            case THEME_BLACK:
+                return "File:" + inst.themeFile(Installer.THEME_BLACK_FILE);
+            case THEME_LIGHT:
+                return "Class:" + Installer.THEME_LIGHT_CLASS;
+            default:
+                return null;
+        }
+    }
+
     @Override
     public void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
-        // surfaceChanged reports the new size.
+        // surfaceChanged reports the new size; here only dark mode matters.
+        int night = systemNight() ? 1 : 0;
+        if (lastNight != -1 && night != lastNight && jvmStarted
+                && Prefs.THEME_SYSTEM.equals(prefs.themeMode())) {
+            Native.pushEvent(ScreenView.THEME, themeKind(), 0, 0, 0);
+        }
+        lastNight = night;
     }
 
     // ---- keys -----------------------------------------------------------------

@@ -275,6 +275,60 @@ final class Installer {
         }
     }
 
+    // ---- Ghidra theme ---------------------------------------------------------
+
+    static final String THEME_DARK_FILE = "android-dark.theme";
+    static final String THEME_BLACK_FILE = "android-black.theme";
+    static final String THEME_LIGHT_CLASS = "generic.theme.builtin.FlatLightTheme";
+
+    /** Ghidra's per-version settings directory, ~/.config/ghidra/ghidra_VERSION_RELEASE. */
+    File ghidraSettingsDir() {
+        String props = readText(new File(ghidra, "Ghidra/application.properties"));
+        String version = ghidraVersion();
+        String release = "PUBLIC";
+        if (props != null) {
+            for (String line : props.split("\n")) {
+                if (line.startsWith("application.release.name=")) {
+                    release = line.substring("application.release.name=".length()).trim();
+                }
+            }
+        }
+        return new File(home, ".config/ghidra/ghidra_" + version + "_" + release);
+    }
+
+    File themeFile(String name) {
+        return new File(new File(ghidraSettingsDir(), "themes"), name);
+    }
+
+    /**
+     * Puts the app's themes where Ghidra's theme chooser finds them, and when
+     * {@code locator} is non-null, makes it the theme Ghidra starts with.
+     * Must run before the JVM starts: Ghidra rewrites the file on exit.
+     */
+    void prepareThemes(String locator) throws IOException {
+        File dir = new File(ghidraSettingsDir(), "themes");
+        dir.mkdirs();
+        for (String name : ctx.getAssets().list("themes")) {
+            try (InputStream in = ctx.getAssets().open("themes/" + name)) {
+                copy(in, new File(dir, name));
+            }
+        }
+        if (locator == null) {
+            return;
+        }
+        File prefs = new File(ghidraSettingsDir(), "preferences");
+        java.util.Properties p = new java.util.Properties();
+        if (prefs.isFile()) {
+            try (InputStream in = new FileInputStream(prefs)) {
+                p.load(in);
+            }
+        }
+        p.setProperty("Theme", locator);
+        try (OutputStream out = new FileOutputStream(prefs)) {
+            p.store(out, "User Preferences");
+        }
+    }
+
     /** Copies a shared/opened file into the Ghidra home so it can be imported. */
     File importFile(InputStream in, String name) throws IOException {
         imports.mkdirs();

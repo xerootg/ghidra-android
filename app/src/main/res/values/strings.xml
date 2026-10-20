@@ -8,6 +8,13 @@
     <string name="storage_access">Allow access to all files (to import from storage)</string>
     <string name="settings">Settings</string>
     <string name="scale_label">Display scale: %1$s× (default %2$.2f×). Takes effect when Ghidra starts.</string>
+    <string name="theme_label">Ghidra theme</string>
+    <string name="theme_system">Follow Android</string>
+    <string name="theme_dark">Dark</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_ghidra">Set in Ghidra</string>
+    <string name="theme_black">Pure black (OLED)</string>
+    <string name="theme_note">Changes apply to a running Ghidra straight away. With Follow Android, Ghidra switches when Android\'s dark mode turns on or off. Set in Ghidra keeps whatever you pick under Edit → Theme.</string>
     <string name="heap_label">Java heap: %1$d MB</string>
     <string name="jvm_args">Extra JVM arguments</string>
     <string name="keybar_on">Key bar: shown</string>

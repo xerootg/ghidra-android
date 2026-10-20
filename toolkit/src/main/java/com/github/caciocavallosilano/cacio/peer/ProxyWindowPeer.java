@@ -219,17 +219,17 @@ class ProxyWindowPeer implements WindowPeer {
 
     @Override
     public void setForeground(Color c) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        // Ghidra for Android: the proxy only draws decorations; ignore.
     }
 
     @Override
     public void setBackground(Color c) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        // Ghidra for Android: the proxy only draws decorations; ignore.
     }
 
     @Override
     public void setFont(Font f) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        // Ghidra for Android: the proxy only draws decorations; ignore.
     }
 
     @Override

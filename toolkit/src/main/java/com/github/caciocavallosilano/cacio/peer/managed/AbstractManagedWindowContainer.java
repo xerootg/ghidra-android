@@ -257,6 +257,8 @@ abstract class AbstractManagedWindowContainer
         Graphics2D g = getClippedGraphics(Color.WHITE, Color.WHITE,
                                           new Font(Font.DIALOG, Font.BOLD, 12),
                                           rects);
+        // Ghidra for Android: the bare screen is black, like the host view.
+        g.setBackground(Color.BLACK);
         g.clearRect(x, y, w, h);
     }
 }

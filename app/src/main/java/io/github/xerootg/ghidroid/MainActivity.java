@@ -125,6 +125,7 @@ public final class MainActivity extends Activity {
         });
 
         col.addView(heading(getString(R.string.settings)));
+        addThemeSetting(col);
         addScaleSetting(col);
         addHeapSetting(col);
         addJvmArgsSetting(col);
@@ -165,6 +166,55 @@ public final class MainActivity extends Activity {
         lp.topMargin = dp(8);
         parent.addView(b, lp);
         return b;
+    }
+
+    private void addThemeSetting(LinearLayout col) {
+        TextView label = new TextView(this);
+        label.setText(R.string.theme_label);
+        col.addView(label);
+        android.widget.RadioGroup group = new android.widget.RadioGroup(this);
+        group.setOrientation(LinearLayout.HORIZONTAL);
+        String[][] modes = {
+            { Prefs.THEME_SYSTEM, getString(R.string.theme_system) },
+            { Prefs.THEME_DARK, getString(R.string.theme_dark) },
+            { Prefs.THEME_LIGHT, getString(R.string.theme_light) },
+            { Prefs.THEME_GHIDRA, getString(R.string.theme_ghidra) },
+        };
+        for (String[] m : modes) {
+            android.widget.RadioButton b = new android.widget.RadioButton(this);
+            b.setText(m[1]);
+            b.setId(View.generateViewId());
+            b.setPadding(0, 0, dp(16), 0);
+            group.addView(b);
+            if (m[0].equals(prefs.themeMode())) {
+                b.setChecked(true);
+            }
+            b.setOnCheckedChangeListener((v, on) -> {
+                if (on) {
+                    prefs.setThemeMode(m[0]);
+                    themeChanged();
+                }
+            });
+        }
+        col.addView(group);
+        android.widget.CheckBox black = new android.widget.CheckBox(this);
+        black.setText(R.string.theme_black);
+        black.setChecked(prefs.pureBlack());
+        black.setOnCheckedChangeListener((v, on) -> {
+            prefs.setPureBlack(on);
+            themeChanged();
+        });
+        col.addView(black);
+        TextView note = new TextView(this);
+        note.setText(R.string.theme_note);
+        note.setAlpha(0.7f);
+        note.setPadding(0, 0, 0, dp(12));
+        col.addView(note);
+    }
+
+    /** Tells a running Ghidra (in the :ghidra process) to re-apply the theme. */
+    private void themeChanged() {
+        sendBroadcast(new Intent(GhidraActivity.ACTION_THEME_CHANGED).setPackage(getPackageName()));
     }
 
     private void addScaleSetting(LinearLayout col) {

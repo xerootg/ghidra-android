@@ -67,8 +67,29 @@ Settings on the start screen:
 - **Extra JVM arguments**: for example `-Dfont.size.override=14` to change
   Ghidra's font size without changing the scale.
 
+- **Ghidra theme**: by default it follows Android's dark mode and switches
+  live when dark mode changes. You can instead pin Dark or Light, or choose
+  "Set in Ghidra" to keep whatever you pick under Edit → Theme.
+- **Pure black (OLED)**: uses a true-black variant of the dark theme. It looks
+  best on the Tab S11's AMOLED panel.
+
+Theme changes apply to a running Ghidra immediately.
+
 The screen follows rotation, split screen, DeX windows and the soft keyboard;
 Ghidra's windows are re-laid out to fit.
+
+### Dark mode
+
+The app adds two Ghidra themes, **Android Dark** and **Android Black**, both
+built on FlatLaf Dark. Android Dark uses neutral greys and keeps contrast
+low; Android Black is true black for OLED screens. In both, the listing's
+current-line band is a subtle tint instead of Ghidra's default bright purple.
+Window title bars and borders follow the theme too.
+
+Both themes also appear in Ghidra's own theme list (Edit → Theme), where you
+can copy and adjust them. The sources are in [`themes/`](themes).
+
+![Android Black theme](docs/codebrowser-black.png)
 
 ## What works, what doesn't
 

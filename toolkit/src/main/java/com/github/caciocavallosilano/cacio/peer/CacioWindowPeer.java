@@ -152,6 +152,7 @@ class CacioWindowPeer extends CacioContainerPeer<Window, JRootPane>
         Window window = (Window) getAWTComponent();
         JRootPane jrootpane = new JRootPane();
         jrootpane.setDoubleBuffered(false);
+        styleTitleBar(jrootpane);
         return jrootpane;
     }
 
@@ -163,6 +164,18 @@ class CacioWindowPeer extends CacioContainerPeer<Window, JRootPane>
             int deco = getRootPaneDecorationStyle();
             jrootpane.setWindowDecorationStyle(deco);
         }
+    }
+
+    /**
+     * Ghidra for Android: title bars take the window background. Decoration
+     * windows are never active, and FlatLaf's inactive title colors do not
+     * follow Ghidra themes.
+     */
+    public static void styleTitleBar(JRootPane rootPane) {
+        rootPane.putClientProperty("JRootPane.titleBarBackground",
+                javax.swing.UIManager.getColor("Panel.background"));
+        rootPane.putClientProperty("JRootPane.titleBarForeground",
+                javax.swing.UIManager.getColor("Label.foreground"));
     }
 
     protected int getRootPaneDecorationStyle() {
