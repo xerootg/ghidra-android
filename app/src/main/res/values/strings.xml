@@ -25,6 +25,7 @@
     <string name="extensions_build_folder">Build from folder…</string>
     <string name="extensions_new">New from template…</string>
     <string name="extensions_new_note">Copies Ghidra\'s extension skeleton (analyzer, loader, exporter, file system, SLEIGH language) into %1$s. Edit it with any editor, then tap Build here.</string>
+    <string name="extensions_new_private">That folder is private to this app. Allow all-files access on the start screen to keep projects in Documents/Ghidra extensions, where other apps (editors, file managers, git clients) can reach them.</string>
     <string name="extensions_create">Create</string>
     <string name="extensions_creating">Creating %1$s…</string>
     <string name="extensions_exists">%1$s already exists.</string>
@@ -32,7 +33,7 @@
     <string name="extensions_projects_note">Folders with an extension.properties in %1$s.</string>
     <string name="extensions_build">Build and install</string>
     <string name="extensions_building">Building %1$s…</string>
-    <string name="extensions_build_failed">Build failed; see the log below.</string>
+    <string name="extensions_build_failed">Build failed; see the log.</string>
     <string name="extensions_installed">Installed</string>
     <string name="extensions_none">None yet.</string>
     <string name="extensions_remove">Remove</string>

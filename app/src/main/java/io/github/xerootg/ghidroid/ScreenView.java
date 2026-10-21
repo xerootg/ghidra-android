@@ -89,6 +89,16 @@ final class ScreenView extends SurfaceView {
 
     @Override
     public boolean onTouchEvent(MotionEvent e) {
+        // Touchpad gestures (Android 14+): two-finger scrolling arrives as a
+        // fake finger drag classified TWO_FINGER_SWIPE, with the scroll
+        // distance in the gesture axes; pinches as PINCH.
+        int cls = e.getClassification();
+        if (cls == MotionEvent.CLASSIFICATION_TWO_FINGER_SWIPE) {
+            return onTouchpadScroll(e);
+        }
+        if (cls == MotionEvent.CLASSIFICATION_PINCH) {
+            return true;
+        }
         int tool = e.getToolType(0);
         if (tool == MotionEvent.TOOL_TYPE_STYLUS || tool == MotionEvent.TOOL_TYPE_ERASER) {
             return onPen(e);
@@ -142,6 +152,27 @@ final class ScreenView extends SurfaceView {
             default:
                 return super.onGenericMotionEvent(e);
         }
+    }
+
+    /**
+     * Touchpad two-finger scroll. The gesture axes hold the distance the
+     * fingers moved since the last event, GestureDetector-style (previous
+     * minus current), already reversed if the user turned on reverse
+     * scrolling. Sent as a finger scroll at the pointer, so content follows
+     * the fingers like on a touchscreen; flings use the pointer velocity.
+     */
+    private boolean onTouchpadScroll(MotionEvent e) {
+        if (e.getActionMasked() != MotionEvent.ACTION_MOVE) {
+            return true;
+        }
+        float dx = -e.getAxisValue(MotionEvent.AXIS_GESTURE_SCROLL_X_DISTANCE);
+        float dy = -e.getAxisValue(MotionEvent.AXIS_GESTURE_SCROLL_Y_DISTANCE);
+        int x = x(e, 0), y = y(e, 0);
+        int sdx = Math.round(dx / scale * 100), sdy = Math.round(dy / scale * 100);
+        if (sdx != 0 || sdy != 0) {
+            push(TOUCH_SCROLL, x, y, sdx, sdy);
+        }
+        return true;
     }
 
     private boolean onPen(MotionEvent e) {

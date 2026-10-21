@@ -52,6 +52,8 @@ public final class ExtensionsActivity extends Activity {
     private TextView status;
     private TextView log;
     private volatile boolean busy;
+    /** Runs on the UI thread after the current task finishes (e.g. a build after a download). */
+    private volatile Runnable then;
     private boolean changed;
 
     @Override
@@ -63,26 +65,46 @@ public final class ExtensionsActivity extends Activity {
 
         LinearLayout col = new LinearLayout(this);
         col.setOrientation(LinearLayout.VERTICAL);
-        col.setPadding(dp(32), dp(24), dp(32), dp(32));
+        col.setPadding(dp(32), 0, dp(32), dp(32));
 
         status = new TextView(this);
         status.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
-        col.addView(status);
+        status.setPadding(dp(32), dp(16), dp(32), dp(8));
+
+        // Build output first, where it is seen without scrolling.
+        log = new TextView(this);
+        log.setTypeface(Typeface.MONOSPACE);
+        log.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        log.setTextIsSelectable(true);
+        log.setVisibility(View.GONE);
+        log.addTextChangedListener(new android.text.TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence c, int a, int b, int d) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence c, int a, int b, int d) {
+            }
+
+            @Override
+            public void afterTextChanged(android.text.Editable e) {
+                log.setVisibility(e.length() == 0 ? View.GONE : View.VISIBLE);
+            }
+        });
+        col.addView(log);
 
         content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
         col.addView(content);
 
-        log = new TextView(this);
-        log.setTypeface(Typeface.MONOSPACE);
-        log.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
-        log.setTextIsSelectable(true);
-        log.setPadding(0, dp(16), 0, 0);
-        col.addView(log);
-
         ScrollView sv = new ScrollView(this);
         sv.addView(col);
-        setContentView(sv);
+        // Status stays visible above the scrolling list.
+        LinearLayout page = new LinearLayout(this);
+        page.setOrientation(LinearLayout.VERTICAL);
+        page.addView(status);
+        page.addView(sv, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1));
+        setContentView(page);
         handleIntent(getIntent());
     }
 
@@ -256,9 +278,13 @@ public final class ExtensionsActivity extends Activity {
             String error = err;
             ui.post(() -> {
                 busy = false;
+                Runnable next = then;
+                then = null;
                 refresh();
                 if (error != null) {
                     status.append("\n" + getString(R.string.extensions_error, error));
+                } else if (next != null) {
+                    next.run();
                 }
             });
         });
@@ -313,7 +339,7 @@ public final class ExtensionsActivity extends Activity {
                 return;
             }
             File project = ext.unpackSource(zip, new File(work, "github"));
-            ui.post(() -> buildAndInstall(project, true));
+            then = () -> buildAndInstall(project, true);
         });
     }
 
@@ -344,6 +370,13 @@ public final class ExtensionsActivity extends Activity {
                     return;
                 }
                 busy = false;
+                if (rc == null || rc != 0) {
+                    // Nothing from the builder: the JVM itself failed; show its output.
+                    String jvm = Installer.readText(new File(logFile.getParentFile(), "tools-jvm.log"));
+                    if ((text == null || text.isEmpty()) && jvm != null) {
+                        log.setText(jvm.length() > 4000 ? jvm.substring(jvm.length() - 4000) : jvm);
+                    }
+                }
                 if (rc != null && rc == 0 && out.isFile()) {
                     runTask(getString(R.string.extensions_installing, project.getName()), () -> install(out));
                 } else {
@@ -358,9 +391,13 @@ public final class ExtensionsActivity extends Activity {
         EditText e = new EditText(this);
         e.setHint("MyExtension");
         e.setSingleLine(true);
+        String msg = getString(R.string.extensions_new_note, projectsDir());
+        if (!Environment.isExternalStorageManager()) {
+            msg += "\n\n" + getString(R.string.extensions_new_private);
+        }
         new AlertDialog.Builder(this)
                 .setTitle(R.string.extensions_new)
-                .setMessage(getString(R.string.extensions_new_note, projectsDir()))
+                .setMessage(msg)
                 .setView(e)
                 .setPositiveButton(R.string.extensions_create, (d, w) -> {
                     String name = e.getText().toString().trim().replaceAll("[^A-Za-z0-9_\\-]", "");
@@ -431,7 +468,7 @@ public final class ExtensionsActivity extends Activity {
                 if (project == null) {
                     throw new IOException(getString(R.string.extensions_no_props));
                 }
-                ui.post(() -> buildAndInstall(project, true));
+                then = () -> buildAndInstall(project, true);
             });
         }
     }

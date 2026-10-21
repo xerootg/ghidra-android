@@ -2,6 +2,8 @@
 <resources>
     <style name="Theme.Ghidroid" parent="@android:style/Theme.DeviceDefault.DayNight">
         <item name="android:colorAccent">#C62828</item>
+        <!-- Plain screens with an action bar; Android 15 would draw them under it. -->
+        <item name="android:windowOptOutEdgeToEdgeEnforcement">true</item>
     </style>
 
     <style name="Theme.Ghidroid.Fullscreen" parent="@android:style/Theme.DeviceDefault.NoActionBar.Fullscreen">
