@@ -48,6 +48,18 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".ExtensionsActivity"
+            android:exported="false"
+            android:label="@string/extensions_title"
+            android:parentActivityName=".MainActivity" />
+
+        <!-- One short-lived JVM per tool run (extension builds). -->
+        <service
+            android:name=".ToolsService"
+            android:exported="false"
+            android:process=":tools" />
+
         <!-- Ghidra and its JVM live in their own process; exiting Ghidra ends it. -->
         <activity
             android:name=".GhidraActivity"

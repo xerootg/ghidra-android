@@ -118,6 +118,8 @@ public final class MainActivity extends Activity {
             i.setType("application/zip");
             startActivityForResult(i, REQ_ZIP);
         });
+        button(col, getString(R.string.extensions_button),
+                v -> startActivity(new Intent(this, ExtensionsActivity.class)));
         storage = button(col, getString(R.string.storage_access), v -> {
             Intent i = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
                     Uri.parse("package:" + getPackageName()));
@@ -133,11 +135,17 @@ public final class MainActivity extends Activity {
         addHeapSetting(col);
         addJvmArgsSetting(col);
         Button keyBar = button(col, "", null);
+        Runnable showKeyBar = () -> keyBar.setText(getString(R.string.keybar_mode, getString(
+                Prefs.KEYBAR_SHOWN.equals(prefs.keyBarMode()) ? R.string.keybar_shown
+                        : Prefs.KEYBAR_HIDDEN.equals(prefs.keyBarMode()) ? R.string.keybar_hidden
+                        : R.string.keybar_auto)));
         keyBar.setOnClickListener(v -> {
-            prefs.setKeyBar(!prefs.keyBar());
-            keyBar.setText(prefs.keyBar() ? R.string.keybar_on : R.string.keybar_off);
+            String m = prefs.keyBarMode();
+            prefs.setKeyBarMode(Prefs.KEYBAR_AUTO.equals(m) ? Prefs.KEYBAR_SHOWN
+                    : Prefs.KEYBAR_SHOWN.equals(m) ? Prefs.KEYBAR_HIDDEN : Prefs.KEYBAR_AUTO);
+            showKeyBar.run();
         });
-        keyBar.setText(prefs.keyBar() ? R.string.keybar_on : R.string.keybar_off);
+        showKeyBar.run();
         button(col, getString(R.string.show_log), v -> showLog());
 
         TextView about = new TextView(this);
@@ -483,19 +491,45 @@ public final class MainActivity extends Activity {
         }
         Uri u = uri;
         String name = displayName(u);
+        if (name.toLowerCase(Locale.US).endsWith(".zip")) {
+            runTask(p -> {
+                p.update("Copying " + name, 0, 0);
+                File zip = new File(getCacheDir(), "shared.zip");
+                try (InputStream in = getContentResolver().openInputStream(u)) {
+                    Installer.copy(in, zip);
+                }
+                if (Extensions.describeZip(zip) != null) {
+                    ui.post(() -> startActivity(new Intent(this, ExtensionsActivity.class)
+                            .putExtra("zip", zip.getPath())));
+                } else if (Installer.isGhidraRelease(zip)) {
+                    inst.installGhidra(zip, p);
+                } else {
+                    File f;
+                    try (InputStream in = new java.io.FileInputStream(zip)) {
+                        f = inst.importFile(in, name);
+                    }
+                    ui.post(() -> showImported(f));
+                }
+            });
+            return;
+        }
         runTask(p -> {
             p.update("Copying " + name, 0, 0);
             File f;
             try (InputStream in = getContentResolver().openInputStream(u)) {
                 f = inst.importFile(in, name);
             }
-            ui.post(() -> new AlertDialog.Builder(this)
-                    .setTitle(R.string.imported_title)
-                    .setMessage(getString(R.string.imported_text, f.getPath()))
-                    .setPositiveButton(R.string.launch, (d, w) -> launch())
-                    .setNegativeButton(android.R.string.cancel, null)
-                    .show());
+            ui.post(() -> showImported(f));
         });
+    }
+
+    private void showImported(File f) {
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.imported_title)
+                .setMessage(getString(R.string.imported_text, f.getPath()))
+                .setPositiveButton(R.string.launch, (d, w) -> launch())
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
     }
 
     private String displayName(Uri uri) {

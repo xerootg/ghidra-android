@@ -50,6 +50,18 @@ public final class GhidraActivity extends Activity implements Native.Host, Surfa
 
     private static final String TAG = "ghidroid";
 
+    /** Sent by ExtensionsActivity: ask Ghidra to exit (it offers to save first). */
+    static final String ACTION_EXIT = "io.github.xerootg.ghidroid.EXIT";
+
+    private final android.content.BroadcastReceiver exitReceiver = new android.content.BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (jvmStarted) {
+                Native.pushEvent(ScreenView.EXIT, 0, 0, 0, 0);
+            }
+        }
+    };
+
     /** Sent by MainActivity when the theme settings change. */
     static final String ACTION_THEME_CHANGED = "io.github.xerootg.ghidroid.THEME_CHANGED";
 
@@ -120,7 +132,7 @@ public final class GhidraActivity extends Activity implements Native.Host, Surfa
                 ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM | Gravity.END);
         lp.setMargins(0, 0, dp(16), dp(16));
         root.addView(keyBar, lp);
-        keyBar.setVisibility(prefs.keyBar() ? View.VISIBLE : View.GONE);
+        updateKeyBar();
 
         setContentView(root);
         hideSystemBars();
@@ -131,6 +143,8 @@ public final class GhidraActivity extends Activity implements Native.Host, Surfa
                 OnBackInvokedDispatcher.PRIORITY_DEFAULT, () -> screen.tapKey(KeyMap.VK_ESCAPE, 0x1b));
 
         registerReceiver(themeReceiver, new android.content.IntentFilter(ACTION_THEME_CHANGED),
+                Context.RECEIVER_NOT_EXPORTED);
+        registerReceiver(exitReceiver, new android.content.IntentFilter(ACTION_EXIT),
                 Context.RECEIVER_NOT_EXPORTED);
 
         Intent svc = new Intent(this, GhidraService.class);
@@ -150,6 +164,7 @@ public final class GhidraActivity extends Activity implements Native.Host, Surfa
         super.onWindowFocusChanged(hasFocus);
         if (hasFocus) {
             hideSystemBars();
+            updateKeyBar();
         }
     }
 
@@ -268,6 +283,7 @@ public final class GhidraActivity extends Activity implements Native.Host, Surfa
     @Override
     protected void onDestroy() {
         unregisterReceiver(themeReceiver);
+        unregisterReceiver(exitReceiver);
         super.onDestroy();
     }
 
@@ -319,7 +335,8 @@ public final class GhidraActivity extends Activity implements Native.Host, Surfa
     @Override
     public void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
-        // surfaceChanged reports the new size; here only dark mode matters.
+        // surfaceChanged reports the new size; here dark mode and the keyboard matter.
+        updateKeyBar();
         int night = systemNight() ? 1 : 0;
         if (lastNight != -1 && night != lastNight && jvmStarted
                 && Prefs.THEME_SYSTEM.equals(prefs.themeMode())) {
@@ -344,6 +361,13 @@ public final class GhidraActivity extends Activity implements Native.Host, Surfa
                 || code == KeyEvent.KEYCODE_VOLUME_DOWN || code == KeyEvent.KEYCODE_VOLUME_MUTE) {
             return super.dispatchKeyEvent(e);
         }
+        // Alt+` opens the window switcher (the key bar's Windows button).
+        if (code == KeyEvent.KEYCODE_GRAVE && e.isAltPressed() && !e.isCtrlPressed()) {
+            if (e.getAction() == KeyEvent.ACTION_DOWN && e.getRepeatCount() == 0) {
+                Native.pushEvent(ScreenView.WINDOWS, 0, 0, 0, 0);
+            }
+            return true;
+        }
         if (e.getAction() == KeyEvent.ACTION_MULTIPLE && e.getCharacters() != null) {
             screen.typeText(e.getCharacters());
             return true;
@@ -359,6 +383,14 @@ public final class GhidraActivity extends Activity implements Native.Host, Surfa
             }
         }
         return super.dispatchKeyEvent(e);
+    }
+
+    /** Key bar visibility from the setting and whether a keyboard is attached. */
+    private void updateKeyBar() {
+        String mode = new Prefs(this).keyBarMode();
+        boolean show = Prefs.KEYBAR_SHOWN.equals(mode)
+                || (Prefs.KEYBAR_AUTO.equals(mode) && !hasHardwareKeyboard());
+        keyBar.setVisibility(show ? View.VISIBLE : View.GONE);
     }
 
     private boolean hasHardwareKeyboard() {

@@ -81,6 +81,11 @@ javac -nowarn --release 21 --patch-module java.compiler="$root/compiler-patch/sr
     -d "$root/compiler-patch/build" "$root/compiler-patch/src/javax/tools/ToolProvider.java"
 (cd "$root/compiler-patch/build" && jar --create --file "$assets/javac/compiler-patch.jar" .)
 
+# --- on-device tools (extension builder) ----------------------------------
+rm -rf "$root/builder/build" && mkdir -p "$root/builder/build/classes"
+javac -nowarn --release 21 -d "$root/builder/build/classes" $(find "$root/builder/src/main/java" -name '*.java')
+(cd "$root/builder/build/classes" && rm -f "$assets/ghidroid-tools.jar" && jar --create --file "$assets/ghidroid-tools.jar" .)
+
 # --- fonts -------------------------------------------------------------------
 fetch "$FONTS_URL" "$cache/dejavu-fonts-ttf-2.37.zip"
 rm -rf "$cache/fonts-stage" && mkdir -p "$cache/fonts-stage" "$assets/fonts"

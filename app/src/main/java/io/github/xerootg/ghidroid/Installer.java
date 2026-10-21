@@ -149,6 +149,9 @@ final class Installer {
                 copy(in, new File(javac, name));
             }
         }
+        try (InputStream in = ctx.getAssets().open("ghidroid-tools.jar")) {
+            copy(in, new File(files, "ghidroid-tools.jar"));
+        }
         File fonts = fontsDir();
         fonts.mkdirs();
         for (String name : ctx.getAssets().list("fonts")) {
@@ -233,6 +236,21 @@ final class Installer {
             throw new IOException("rename " + part);
         }
         return out;
+    }
+
+    /** True for an official-layout Ghidra release zip (NAME/Ghidra/application.properties). */
+    static boolean isGhidraRelease(File zip) {
+        try (ZipFile z = new ZipFile(zip)) {
+            for (java.util.Enumeration<? extends ZipEntry> en = z.entries(); en.hasMoreElements(); ) {
+                String n = en.nextElement().getName();
+                if (n.matches("[^/]+/Ghidra/application\\.properties")) {
+                    return true;
+                }
+            }
+        } catch (IOException e) {
+            return false;
+        }
+        return false;
     }
 
     /** Installs a Ghidra release zip (the official PUBLIC zip layout). */

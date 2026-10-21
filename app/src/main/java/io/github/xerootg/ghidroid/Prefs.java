@@ -125,7 +125,22 @@ final class Prefs {
         sp.edit().putString("lastUserName", s).commit();
     }
 
-    /** Show the floating key bar (Esc, Ctrl, Alt, ...). */
+    /** Key bar: shown always, hidden always, or hidden while a hardware keyboard is attached. */
+    static final String KEYBAR_AUTO = "auto", KEYBAR_SHOWN = "shown", KEYBAR_HIDDEN = "hidden";
+
+    String keyBarMode() {
+        if (sp.contains("keyBarMode")) {
+            return sp.getString("keyBarMode", KEYBAR_AUTO);
+        }
+        // Older setting: a plain on/off.
+        return sp.getBoolean("keyBar", true) ? KEYBAR_AUTO : KEYBAR_HIDDEN;
+    }
+
+    void setKeyBarMode(String m) {
+        sp.edit().putString("keyBarMode", m).commit();
+    }
+
+    /** Show the floating key bar (old on/off setting). */
     boolean keyBar() {
         return sp.getBoolean("keyBar", true);
     }

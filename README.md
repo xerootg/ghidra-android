@@ -44,6 +44,15 @@ long analysis survives switching apps.
 | Mouse, trackpad | As on a desktop, including right button, wheel and hover |
 | Back gesture or key | Escape (closes menus and dialogs) |
 
+With the Book Cover Keyboard (or any keyboard and touchpad), Ghidra works as
+it does on a desktop:
+- **Key bar**: hidden while a keyboard is attached; the setting can also be
+  Always shown or Always hidden.
+- **Window switcher**: Alt+` opens it.
+- **Shortcuts**: Ghidra's own keys work as usual.
+- **Touchpad**: moves the pointer, with hover tooltips. Tap is a click, a
+  two-finger tap is a right-click, and two-finger scrolling scrolls.
+
 The floating **key bar** (drag it by its keyboard button) has:
 
 - **⌨**: show the soft keyboard. It also opens by itself when you tap into a text field.
@@ -77,6 +86,43 @@ Theme changes apply to a running Ghidra immediately.
 
 The screen follows rotation, split screen, DeX windows and the soft keyboard;
 Ghidra's windows are re-laid out to fit.
+
+### Extensions and plugins
+
+**Extensions…** on the start screen manages Ghidra extensions without a
+desktop:
+
+- **Installed**: what Ghidra will load, with the version each was built for.
+  Remove extensions here.
+- **Included with Ghidra**: the optional extensions in the release (Jython,
+  SampleTablePlugin, SleighDevTools, MachineLearning, ...). One tap installs
+  one.
+- **Install zip…**: an extension zip from storage. Sharing a zip to the app,
+  or opening one with it, also works. If a zip was built for another Ghidra
+  version, the app offers to install it marked for this version (Ghidra
+  otherwise refuses to load it).
+- **From GitHub…**: give `owner/repo`. If a release has a zip for this Ghidra
+  version, it is installed directly. Otherwise the app downloads the source and
+  builds it on the device.
+- **Build from folder…** and **New from template…**: build an extension
+  project from source on the tablet. The template is Ghidra's own Skeleton (an
+  analyzer, loader, exporter, file system and a SLEIGH processor). It is copied
+  to `Documents/Ghidra extensions/`, where you can edit it with any editor;
+  then tap **Build and install**.
+
+Builds use the same layout as Ghidra's `buildExtension.gradle`, without
+Gradle: `src/main/java` is compiled with the bundled javac against Ghidra's
+jars and `lib/*.jar`, and the result is packaged with `extension.properties`,
+`data/` and `ghidra_scripts/`. Direct Maven dependencies written in
+`build.gradle` as `implementation 'group:artifact:version'` are downloaded,
+but not their own dependencies. Kotlin and native code (`os/`) are not
+supported. The build runs in a separate short-lived process, so Ghidra does not
+need to be running. Ghidra loads new extensions when it next starts; from the
+Extensions screen you can ask a running Ghidra to exit (it offers to save
+first). The builder also runs on a desktop JDK:
+`java -cp ghidroid-tools.jar:<javac> io.github.xerootg.ghidroid.tools.ExtensionBuilder GHIDRA_DIR PROJECT OUT.zip`.
+
+Ghidra's own File → Install Extensions dialog works too.
 
 ### Ghidra Server
 

@@ -42,6 +42,8 @@ public final class Input {
     public static final int WINDOWS = 30;
     /** Switches Ghidra's theme: a = {@link GhidraTheme} kind. */
     public static final int THEME = 31;
+    /** Asks Ghidra to exit the way File > Exit does (save prompts included). */
+    public static final int EXIT = 32;
     /** Prints the window and component tree to stdout. */
     public static final int DEBUG_DUMP = 99;
 
@@ -112,6 +114,9 @@ public final class Input {
                 break;
             case THEME:
                 GhidraTheme.apply(a);
+                break;
+            case EXIT:
+                GhidraTheme.exitGhidra();
                 break;
             case WINDOWS:
                 java.awt.EventQueue.invokeLater(WindowManager::showWindowSwitcher);

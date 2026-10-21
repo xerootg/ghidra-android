@@ -94,4 +94,17 @@ final class GhidraTheme {
             }
         });
     }
+
+    /** File > Exit Ghidra, through Ghidra's AppInfo (reflection, like the theme API). */
+    static void exitGhidra() {
+        EventQueue.invokeLater(() -> {
+            try {
+                Class<?> app = Class.forName("ghidra.framework.main.AppInfo", true,
+                        ClassLoader.getSystemClassLoader());
+                app.getMethod("exitGhidra").invoke(null);
+            } catch (ReflectiveOperationException | LinkageError e) {
+                System.err.println("ghidroid: cannot exit Ghidra: " + e);
+            }
+        });
+    }
 }
