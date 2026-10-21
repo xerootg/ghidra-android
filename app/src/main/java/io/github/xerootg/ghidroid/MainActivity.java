@@ -51,6 +51,7 @@ public final class MainActivity extends Activity {
     private Button download;
     private Button importZip;
     private Button storage;
+    private TextView update;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -72,6 +73,69 @@ public final class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         refresh();
+        checkForUpdate();
+    }
+
+    private static final String RELEASES = "https://github.com/xerootg/ghidra-android/releases/latest";
+
+    /** At most daily: is there a newer release of this app on GitHub? */
+    private void checkForUpdate() {
+        android.content.SharedPreferences sp = getSharedPreferences("update", MODE_PRIVATE);
+        long now = System.currentTimeMillis();
+        String known = sp.getString("latest", null);
+        if (known != null) {
+            showUpdate(known);
+        }
+        if (now - sp.getLong("checked", 0) < 24 * 3600 * 1000L) {
+            return;
+        }
+        worker.execute(() -> {
+            try {
+                String json = Extensions.http(
+                        "https://api.github.com/repos/xerootg/ghidra-android/releases/latest");
+                java.util.regex.Matcher m = java.util.regex.Pattern
+                        .compile("\"tag_name\"\\s*:\\s*\"v?([^\"]+)\"").matcher(json);
+                if (m.find()) {
+                    String latest = m.group(1);
+                    sp.edit().putString("latest", latest).putLong("checked", now).apply();
+                    ui.post(() -> showUpdate(latest));
+                }
+            } catch (java.io.IOException e) {
+                // Offline; try again next time.
+            }
+        });
+    }
+
+    private void showUpdate(String latest) {
+        if (compareVersions(latest, BuildConfig.VERSION_NAME) <= 0) {
+            update.setVisibility(View.GONE);
+            return;
+        }
+        update.setText(getString(R.string.update_available, latest, BuildConfig.VERSION_NAME));
+        update.setTextColor(0xFF8AB4F8);
+        update.setOnClickListener(v -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(RELEASES))));
+        update.setVisibility(View.VISIBLE);
+    }
+
+    /** Compares dotted numeric versions (0.10.0 > 0.9.1). */
+    static int compareVersions(String a, String b) {
+        String[] x = a.split("[.\\-]"), y = b.split("[.\\-]");
+        for (int i = 0; i < Math.max(x.length, y.length); i++) {
+            int p = i < x.length ? parseOr0(x[i]) : 0;
+            int q = i < y.length ? parseOr0(y[i]) : 0;
+            if (p != q) {
+                return Integer.compare(p, q);
+            }
+        }
+        return 0;
+    }
+
+    private static int parseOr0(String s) {
+        try {
+            return Integer.parseInt(s);
+        } catch (NumberFormatException e) {
+            return 0;
+        }
     }
 
     // ---- UI ---------------------------------------------------------------------
@@ -147,6 +211,12 @@ public final class MainActivity extends Activity {
         });
         showKeyBar.run();
         button(col, getString(R.string.show_log), v -> showLog());
+
+        update = new TextView(this);
+        update.setVisibility(View.GONE);
+        update.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+        update.setPadding(0, dp(16), 0, 0);
+        col.addView(update);
 
         TextView about = new TextView(this);
         about.setText(R.string.about);
