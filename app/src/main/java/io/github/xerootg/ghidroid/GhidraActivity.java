@@ -337,6 +337,8 @@ public final class GhidraActivity extends Activity implements Native.Host, Surfa
         super.onConfigurationChanged(newConfig);
         // surfaceChanged reports the new size; here dark mode and the keyboard matter.
         updateKeyBar();
+        screen.softKeyboardRequested = false;
+        ((InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE)).restartInput(screen);
         int night = systemNight() ? 1 : 0;
         if (lastNight != -1 && night != lastNight && jvmStarted
                 && Prefs.THEME_SYSTEM.equals(prefs.themeMode())) {
@@ -364,6 +366,12 @@ public final class GhidraActivity extends Activity implements Native.Host, Surfa
         // Alt+` opens the window switcher (the key bar's Windows button).
         if (code == KeyEvent.KEYCODE_GRAVE && e.isAltPressed() && !e.isCtrlPressed()) {
             if (e.getAction() == KeyEvent.ACTION_DOWN && e.getRepeatCount() == 0) {
+                // Ghidra saw Alt go down; without a key in between, the Alt
+                // release would read as a lone Alt tap, which focuses the menu
+                // bar and closes the switcher. A key with no code or character
+                // counts as "something else was pressed" and does nothing.
+                Native.pushEvent(ScreenView.KEY_DOWN, 0, KeyMap.ALT_DOWN, 0, KeyMap.LOCATION_STANDARD);
+                Native.pushEvent(ScreenView.KEY_UP, 0, KeyMap.ALT_DOWN, 0, KeyMap.LOCATION_STANDARD);
                 Native.pushEvent(ScreenView.WINDOWS, 0, 0, 0, 0);
             }
             return true;
@@ -402,10 +410,16 @@ public final class GhidraActivity extends Activity implements Native.Host, Surfa
     private void showKeyboard(boolean show) {
         InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
         if (show) {
+            screen.softKeyboardRequested = true;
             screen.requestFocus();
+            imm.restartInput(screen);
             imm.showSoftInput(screen, 0);
         } else {
             imm.hideSoftInputFromWindow(screen.getWindowToken(), 0);
+            if (screen.softKeyboardRequested) {
+                screen.softKeyboardRequested = false;
+                imm.restartInput(screen);
+            }
         }
     }
 

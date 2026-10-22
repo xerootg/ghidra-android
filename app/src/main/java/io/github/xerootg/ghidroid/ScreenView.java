@@ -438,13 +438,27 @@ final class ScreenView extends SurfaceView {
         push(KEY_UP, vk, mods, ch, KeyMap.LOCATION_STANDARD);
     }
 
+    /**
+     * With a hardware keyboard attached, the screen is not a text editor:
+     * key events arrive without an input method, and an attached one (Gboard,
+     * Samsung Keyboard) would show its floating toolbar and take screen space.
+     */
     @Override
     public boolean onCheckIsTextEditor() {
-        return true;
+        android.content.res.Configuration c = getResources().getConfiguration();
+        boolean hardKeyboard = c.keyboard != android.content.res.Configuration.KEYBOARD_NOKEYS
+                && c.hardKeyboardHidden == android.content.res.Configuration.HARDKEYBOARDHIDDEN_NO;
+        return !hardKeyboard || softKeyboardRequested;
     }
+
+    /** Set while the user asked for the soft keyboard (key bar button). */
+    boolean softKeyboardRequested;
 
     @Override
     public InputConnection onCreateInputConnection(EditorInfo out) {
+        if (!onCheckIsTextEditor()) {
+            return null;
+        }
         out.inputType = InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
                 | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS;
         out.imeOptions = EditorInfo.IME_FLAG_NO_EXTRACT_UI | EditorInfo.IME_FLAG_NO_FULLSCREEN
