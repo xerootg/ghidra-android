@@ -69,6 +69,7 @@ public final class GhidraActivity extends Activity implements Native.Host, Surfa
         @Override
         public void onReceive(Context context, Intent intent) {
             prefs = new Prefs(GhidraActivity.this);
+            ui.post(GhidraActivity.this::checkMode);
             int kind = themeKind();
             if (jvmStarted && kind != THEME_NONE) {
                 Native.pushEvent(ScreenView.THEME, kind, 0, 0, 0);
@@ -86,9 +87,37 @@ public final class GhidraActivity extends Activity implements Native.Host, Surfa
     private float scale;
 
     private int stickyMods;
+    private WindowTray tray;
+    /** Alt+` is cycling the switcher; releasing Alt picks the highlighted window. */
+    private boolean cycling;
     private boolean rightClickArmed;
     private final List<Button> modButtons = new ArrayList<>();
     private Button rightClickButton;
+
+    /** Ghidra's windows as last published (the :ghidra process). */
+    private static volatile List<WindowTray.Win> windowList = new ArrayList<>();
+    /** Each Ghidra window in its own Android window (DeX, freeform). */
+    private boolean separate;
+    /** The Ghidra window this activity shows in separate mode. */
+    private int primaryId = -1;
+    /** Hosts started but not created yet, so reconcile does not start two. */
+    private final java.util.Set<Integer> pending = new java.util.HashSet<>();
+    private int surfaceW, surfaceH;
+
+    /** The running activity, for hosts (the :ghidra process). */
+    static volatile GhidraActivity current;
+    /** Windows the user just closed from Android; Ghidra may still refuse. */
+    private final java.util.Set<Integer> closing = new java.util.HashSet<>();
+
+    /** The latest window list entry for a Ghidra window, or null. */
+    static WindowTray.Win windowInfo(int id) {
+        for (WindowTray.Win w : windowList) {
+            if (w.id == id) {
+                return w;
+            }
+        }
+        return null;
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -97,6 +126,7 @@ public final class GhidraActivity extends Activity implements Native.Host, Surfa
         scale = prefs.scale();
         lastNight = systemNight() ? 1 : 0;
         Native.setHost(this);
+        current = this;
 
         FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(Color.BLACK);
@@ -134,6 +164,11 @@ public final class GhidraActivity extends Activity implements Native.Host, Surfa
         root.addView(keyBar, lp);
         updateKeyBar();
 
+        // Window tray beside Ghidra's close button: Ghidra's title bar is 30
+        // Ghidra pixels tall and its window buttons 46 wide.
+        tray = new WindowTray(this, this::bringToFront);
+        tray.attach(root, Math.round(30 * scale), Math.round(46 * scale) + dp(8));
+
         setContentView(root);
         hideSystemBars();
         screen.requestFocus();
@@ -163,6 +198,9 @@ public final class GhidraActivity extends Activity implements Native.Host, Surfa
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
         if (hasFocus) {
+            if (separate && primaryId > 0) {
+                Native.pushEvent(ScreenView.WINDOW_FRONT, primaryId, 0, 0, 0);
+            }
             hideSystemBars();
             updateKeyBar();
         }
@@ -178,6 +216,14 @@ public final class GhidraActivity extends Activity implements Native.Host, Surfa
     public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
         int w = Math.max(320, Math.round(width / scale));
         int h = Math.max(240, Math.round(height / scale));
+        surfaceW = w;
+        surfaceH = h;
+        if (separate && primaryId > 0) {
+            Native.setSurfaceFor(primaryId, holder.getSurface());
+            Native.pushEvent(ScreenView.HOST_ATTACH, primaryId, 0, 0, 0);
+            Native.pushEvent(ScreenView.WINDOW_RESIZE, primaryId, w, h, 0);
+            return;
+        }
         Native.setSurface(holder.getSurface());
         if (!jvmStarted) {
             jvmStarted = true;
@@ -185,11 +231,195 @@ public final class GhidraActivity extends Activity implements Native.Host, Surfa
         } else {
             Native.pushEvent(ScreenView.RESIZE, w, h, 0, 0);
         }
+        ui.post(this::checkMode);
     }
 
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
+        if (separate && primaryId > 0) {
+            Native.pushEvent(ScreenView.HOST_DETACH, primaryId, 0, 0, 0);
+            Native.setSurfaceFor(primaryId, null);
+        }
         Native.setSurface(null);
+        surfaceW = 0;
+    }
+
+    // ---- separate windows (DeX, freeform) ---------------------------------------
+
+    /** Whether Ghidra's windows should each get an Android window now. */
+    private boolean wantSeparate() {
+        switch (prefs.windowsMode()) {
+            case Prefs.WINDOWS_SEPARATE:
+                return true;
+            case Prefs.WINDOWS_SINGLE:
+                return false;
+            default:
+                return desktopMode() || freeform();
+        }
+    }
+
+    /** Samsung DeX (Configuration.semDesktopModeEnabled, Samsung only). */
+    private boolean desktopMode() {
+        Configuration c = getResources().getConfiguration();
+        try {
+            Class<?> k = c.getClass();
+            int on = k.getField("SEM_DESKTOP_MODE_ENABLED").getInt(null);
+            return k.getField("semDesktopModeEnabled").getInt(c) == on;
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            return false;
+        }
+    }
+
+    /** A resizable floating window (freeform), not split screen or full screen. */
+    private boolean freeform() {
+        if (!isInMultiWindowMode()) {
+            return false;
+        }
+        android.graphics.Rect now = getWindowManager().getCurrentWindowMetrics().getBounds();
+        android.graphics.Rect max = getWindowManager().getMaximumWindowMetrics().getBounds();
+        // Split screen fills one dimension; a floating window fills neither.
+        return now.width() < max.width() && now.height() < max.height();
+    }
+
+    private void checkMode() {
+        if (!jvmStarted || isFinishing()) {
+            return;
+        }
+        boolean want = wantSeparate();
+        if (want && !separate) {
+            enterSeparate();
+        } else if (!want && separate) {
+            exitSeparate();
+        }
+    }
+
+    /** The window this activity shows: the first frame (Ghidra's project window). */
+    private static int firstFrame(List<WindowTray.Win> list) {
+        for (WindowTray.Win w : list) {
+            if (w.kind == 'f') {
+                return w.id;
+            }
+        }
+        return list.isEmpty() ? -1 : list.get(0).id;
+    }
+
+    private void enterSeparate() {
+        int first = firstFrame(windowList);
+        if (first < 0) {
+            return; // No windows yet; the next list tries again.
+        }
+        Log.i(TAG, "separate windows on, primary " + first);
+        separate = true;
+        tray.setChipHidden(true);
+        Native.pushEvent(ScreenView.MODE, 1, 0, 0, 0);
+        attachPrimary(first);
+        reconcile();
+    }
+
+    private void attachPrimary(int id) {
+        primaryId = id;
+        WindowTray.Win w = windowInfo(id);
+        if (w != null) {
+            screen.setOrigin(w.x, w.y);
+        }
+        if (surfaceW > 0) {
+            Native.setSurface(null);
+            Native.setSurfaceFor(id, screen.getHolder().getSurface());
+            Native.pushEvent(ScreenView.HOST_ATTACH, id, 0, 0, 0);
+            Native.pushEvent(ScreenView.WINDOW_RESIZE, id, surfaceW, surfaceH, 0);
+        }
+    }
+
+    private void exitSeparate() {
+        Log.i(TAG, "separate windows off");
+        separate = false;
+        tray.setChipHidden(false);
+        for (GhidraWindowActivity h : new ArrayList<>(GhidraWindowActivity.HOSTS.values())) {
+            h.closeFromGhidra();
+        }
+        pending.clear();
+        if (primaryId > 0) {
+            Native.pushEvent(ScreenView.HOST_DETACH, primaryId, 0, 0, 0);
+            Native.setSurfaceFor(primaryId, null);
+        }
+        primaryId = -1;
+        screen.setOrigin(0, 0);
+        Native.pushEvent(ScreenView.MODE, 0, 0, 0, 0);
+        if (surfaceW > 0) {
+            Native.setSurface(screen.getHolder().getSurface());
+            Native.pushEvent(ScreenView.RESIZE, surfaceW, surfaceH, 0, 0);
+        }
+    }
+
+    /** Matches the Android windows to Ghidra's windows. */
+    private void reconcile() {
+        if (!separate) {
+            return;
+        }
+        List<WindowTray.Win> list = windowList;
+        java.util.Set<Integer> live = new java.util.HashSet<>();
+        for (WindowTray.Win w : list) {
+            live.add(w.id);
+        }
+        if (!live.contains(primaryId)) {
+            // The window shown here closed: show another frame here instead.
+            int next = firstFrame(list);
+            if (next < 0) {
+                return;
+            }
+            GhidraWindowActivity h = GhidraWindowActivity.HOSTS.get(next);
+            if (h != null) {
+                h.closeFromGhidra();
+            }
+            Native.setSurfaceFor(primaryId, null);
+            attachPrimary(next);
+        }
+        WindowTray.Win primary = windowInfo(primaryId);
+        if (primary != null) {
+            screen.setOrigin(primary.x, primary.y);
+        }
+        for (GhidraWindowActivity h : new ArrayList<>(GhidraWindowActivity.HOSTS.values())) {
+            WindowTray.Win w = windowInfo(h.windowId());
+            if (w == null) {
+                h.closeFromGhidra();
+            } else {
+                h.update(w);
+            }
+        }
+        pending.retainAll(live);
+        pending.removeAll(GhidraWindowActivity.HOSTS.keySet());
+        android.graphics.Rect near = getWindowManager().getCurrentWindowMetrics().getBounds();
+        for (WindowTray.Win w : list) {
+            if (w.id != primaryId && !GhidraWindowActivity.HOSTS.containsKey(w.id) && !pending.contains(w.id)
+                    && !closing.contains(w.id)) {
+                pending.add(w.id);
+                GhidraWindowActivity.open(this, w, scale, near);
+            }
+        }
+    }
+
+    /** A host was closed by the user; Ghidra may refuse, so check again shortly. */
+    void reconcileSoon(int id) {
+        ui.post(() -> closing.add(id));
+        ui.postDelayed(() -> {
+            closing.remove(id);
+            reconcile();
+        }, 1500);
+    }
+
+    /** Tray or switcher choice: bring the Ghidra window (and its Android window) forward. */
+    private void bringToFront(int id) {
+        Native.pushEvent(ScreenView.WINDOW_FRONT, id, 0, 0, 0);
+        if (!separate) {
+            return;
+        }
+        GhidraWindowActivity h = GhidraWindowActivity.HOSTS.get(id);
+        android.app.ActivityManager am = getSystemService(android.app.ActivityManager.class);
+        try {
+            am.moveTaskToFront(id == primaryId || h == null ? getTaskId() : h.getTaskId(), 0);
+        } catch (SecurityException e) {
+            Log.w(TAG, "moveTaskToFront", e);
+        }
     }
 
     private void startJvm(int w, int h) {
@@ -282,6 +512,14 @@ public final class GhidraActivity extends Activity implements Native.Host, Surfa
 
     @Override
     protected void onDestroy() {
+        if (separate) {
+            for (GhidraWindowActivity h : new ArrayList<>(GhidraWindowActivity.HOSTS.values())) {
+                h.closeFromGhidra();
+            }
+        }
+        if (current == this) {
+            current = null;
+        }
         unregisterReceiver(themeReceiver);
         unregisterReceiver(exitReceiver);
         super.onDestroy();
@@ -345,6 +583,13 @@ public final class GhidraActivity extends Activity implements Native.Host, Surfa
             Native.pushEvent(ScreenView.THEME, themeKind(), 0, 0, 0);
         }
         lastNight = night;
+        ui.post(this::checkMode);
+    }
+
+    @Override
+    public void onMultiWindowModeChanged(boolean inMultiWindow, Configuration newConfig) {
+        super.onMultiWindowModeChanged(inMultiWindow, newConfig);
+        ui.post(this::checkMode);
     }
 
     // ---- keys -----------------------------------------------------------------
@@ -363,16 +608,33 @@ public final class GhidraActivity extends Activity implements Native.Host, Surfa
                 || code == KeyEvent.KEYCODE_VOLUME_DOWN || code == KeyEvent.KEYCODE_VOLUME_MUTE) {
             return super.dispatchKeyEvent(e);
         }
-        // Alt+` opens the window switcher (the key bar's Windows button).
+        // Alt+` works like Alt+Tab: hold Alt, tap ` to move through the
+        // windows (Shift+` goes back), release Alt to switch; Esc cancels.
         if (code == KeyEvent.KEYCODE_GRAVE && e.isAltPressed() && !e.isCtrlPressed()) {
-            if (e.getAction() == KeyEvent.ACTION_DOWN && e.getRepeatCount() == 0) {
-                // Ghidra saw Alt go down; without a key in between, the Alt
-                // release would read as a lone Alt tap, which focuses the menu
-                // bar and closes the switcher. A key with no code or character
-                // counts as "something else was pressed" and does nothing.
-                Native.pushEvent(ScreenView.KEY_DOWN, 0, KeyMap.ALT_DOWN, 0, KeyMap.LOCATION_STANDARD);
-                Native.pushEvent(ScreenView.KEY_UP, 0, KeyMap.ALT_DOWN, 0, KeyMap.LOCATION_STANDARD);
-                Native.pushEvent(ScreenView.WINDOWS, 0, 0, 0, 0);
+            if (e.getAction() == KeyEvent.ACTION_DOWN) {
+                if (!cycling) {
+                    cycling = true;
+                    // Ghidra saw Alt go down; a key in between keeps it from
+                    // reading the Alt release as a lone tap (menu bar focus).
+                    // This one has no code or character, so it does nothing.
+                    Native.pushEvent(ScreenView.KEY_DOWN, 0, KeyMap.ALT_DOWN, 0, KeyMap.LOCATION_STANDARD);
+                    Native.pushEvent(ScreenView.KEY_UP, 0, KeyMap.ALT_DOWN, 0, KeyMap.LOCATION_STANDARD);
+                }
+                tray.cycle(e.isShiftPressed());
+            }
+            return true;
+        }
+        if (cycling && (code == KeyEvent.KEYCODE_ALT_LEFT || code == KeyEvent.KEYCODE_ALT_RIGHT)
+                && e.getAction() == KeyEvent.ACTION_UP) {
+            cycling = false;
+            tray.commit();
+            screen.sendKey(e);
+            return true;
+        }
+        if (tray.isShowing() && code == KeyEvent.KEYCODE_ESCAPE) {
+            if (e.getAction() == KeyEvent.ACTION_UP) {
+                cycling = false;
+                tray.dismiss();
             }
             return true;
         }
@@ -442,7 +704,7 @@ public final class GhidraActivity extends Activity implements Native.Host, Surfa
 
         Button kb = barButton("⌨", v -> showKeyboard(true));
         bar.addView(kb);
-        bar.addView(barButton("Windows", v -> Native.pushEvent(ScreenView.WINDOWS, 0, 0, 0, 0)));
+        bar.addView(barButton("Windows", v -> tray.toggle()));
         bar.addView(barButton("Esc", v -> screen.tapKey(KeyMap.VK_ESCAPE, 0x1b)));
         bar.addView(barButton("Tab", v -> screen.tapKey(KeyMap.VK_TAB, '\t')));
         bar.addView(modButton("Ctrl", KeyMap.CTRL_DOWN));
@@ -548,6 +810,15 @@ public final class GhidraActivity extends Activity implements Native.Host, Surfa
                     break;
                 case Native.HOST_CURSOR:
                     screen.setAwtCursor(arg);
+                    break;
+                case Native.HOST_WINDOWS:
+                    windowList = WindowTray.parse(text);
+                    tray.setWindows(windowList);
+                    if (separate) {
+                        reconcile();
+                    } else {
+                        checkMode();
+                    }
                     break;
                 case Native.HOST_HAPTIC:
                     screen.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);

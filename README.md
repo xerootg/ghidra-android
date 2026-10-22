@@ -48,17 +48,22 @@ With the Book Cover Keyboard (or any keyboard and touchpad), Ghidra works as
 it does on a desktop:
 - **Key bar**: hidden while a keyboard is attached; the setting can also be
   Always shown or Always hidden.
-- **Window switcher**: Alt+` opens it.
+- **Window switcher**: works like Alt+Tab. Hold Alt and tap ` to step through
+  the windows (Shift+` steps back), then let go of Alt to switch. Esc cancels.
 - **Shortcuts**: Ghidra's own keys work as usual.
 - **Touchpad**: moves the pointer, with hover tooltips. Tap is a click, a
   two-finger tap is a right-click, and two-finger scrolling scrolls.
 
+The **window tray** in the top-right corner, next to Ghidra's close button,
+shows how many windows are open and which one is active. Tap it to list the
+windows, and tap one to bring it to the front.
+
 The floating **key bar** (drag it by its keyboard button) has:
 
 - **⌨**: show the soft keyboard. It also opens by itself when you tap into a text field.
-- **Windows**: switch between Ghidra windows (project window, CodeBrowser,
-  Script Manager, ...). Every window fills the screen, so this is how you reach
-  the ones underneath.
+- **Windows**: opens the window tray (project window, CodeBrowser, Script
+  Manager, ...). On a single screen every window fills it, so this is how you
+  reach the ones underneath.
 - **Esc**, **Tab**: those keys.
 - **Ctrl**, **Alt**, **Shift**: sticky modifiers for the next key or click.
 - **Right**: the next tap is a right-click.
@@ -83,6 +88,12 @@ Settings on the start screen:
   best on the Tab S11's AMOLED panel.
 
 Theme changes apply to a running Ghidra immediately.
+
+- **Ghidra windows**: in Samsung DeX or a floating (pop-up) window, each
+  Ghidra window, dialog and search box gets its own Android window, so a
+  dialog no longer covers the program. Each window can be moved, resized and
+  closed on its own, and appears in the taskbar. Elsewhere Ghidra stays on one
+  screen. This can also be set to always separate or always one screen.
 
 The screen follows rotation, split screen, DeX windows and the soft keyboard;
 Ghidra's windows are re-laid out to fit.

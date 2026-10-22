@@ -65,7 +65,11 @@ public final class Bridge {
                 int w = Display.getWidth();
                 int h = Display.getHeight();
                 if (px.length >= w * h) {
-                    backend.present(px, w, h);
+                    if (WindowManager.separate && !backend.wholeScreen()) {
+                        presentWindows(px, w, h);
+                    } else {
+                        backend.present(px, w, h);
+                    }
                 }
             }
             next += FRAME_NANOS;
@@ -78,6 +82,20 @@ public final class Bridge {
                 }
             } else {
                 next = System.nanoTime();
+            }
+        }
+    }
+
+    /** Separate mode: each hosted window's content area to its own surface. */
+    private static void presentWindows(int[] px, int sw, int sh) {
+        for (int id : WindowManager.hosted) {
+            java.awt.Window win = WindowList.byId(id);
+            if (win == null || !win.isShowing()) {
+                continue;
+            }
+            java.awt.Rectangle r = WindowManager.contentBounds(win).intersection(new java.awt.Rectangle(0, 0, sw, sh));
+            if (!r.isEmpty()) {
+                backend.presentRegion(px, sw, id, r.x, r.y, r.width, r.height);
             }
         }
     }
@@ -101,6 +119,12 @@ public final class Bridge {
     public static void setCursor(int type) {
         if (backend != null) {
             backend.setCursor(type);
+        }
+    }
+
+    static void windowsChanged(String list) {
+        if (backend != null) {
+            backend.windowsChanged(list);
         }
     }
 

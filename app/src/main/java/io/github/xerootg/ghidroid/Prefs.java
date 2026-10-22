@@ -125,6 +125,17 @@ final class Prefs {
         sp.edit().putString("lastUserName", s).commit();
     }
 
+    /** Ghidra windows: each in its own Android window in DeX/freeform (auto), always, or never. */
+    static final String WINDOWS_AUTO = "auto", WINDOWS_SEPARATE = "separate", WINDOWS_SINGLE = "single";
+
+    String windowsMode() {
+        return sp.getString("windowsMode", WINDOWS_AUTO);
+    }
+
+    void setWindowsMode(String m) {
+        sp.edit().putString("windowsMode", m).commit();
+    }
+
     /** Key bar: shown always, hidden always, or hidden while a hardware keyboard is attached. */
     static final String KEYBAR_AUTO = "auto", KEYBAR_SHOWN = "shown", KEYBAR_HIDDEN = "hidden";
 

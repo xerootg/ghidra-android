@@ -44,6 +44,18 @@ public final class Input {
     public static final int THEME = 31;
     /** Asks Ghidra to exit the way File > Exit does (save prompts included). */
     public static final int EXIT = 32;
+    /** Brings Ghidra window a (a {@link WindowList} id) to the front. */
+    public static final int WINDOW_FRONT = 33;
+    /** a = 1: separate windows (each Ghidra window in its own host window), 0: one screen. */
+    public static final int MODE = 34;
+    /** Host surface for window a appeared (separate mode). */
+    public static final int HOST_ATTACH = 35;
+    /** Host surface for window a went away. */
+    public static final int HOST_DETACH = 36;
+    /** Host resized window a's content to b x c. */
+    public static final int WINDOW_RESIZE = 37;
+    /** Host close button on window a. */
+    public static final int WINDOW_CLOSE = 38;
     /** Prints the window and component tree to stdout. */
     public static final int DEBUG_DUMP = 99;
 
@@ -114,6 +126,25 @@ public final class Input {
                 break;
             case THEME:
                 GhidraTheme.apply(a);
+                break;
+            case MODE:
+                WindowManager.setSeparate(a != 0);
+                break;
+            case HOST_ATTACH:
+                WindowManager.hosted.add(a);
+                Display.markDirty();
+                break;
+            case HOST_DETACH:
+                WindowManager.hosted.remove(a);
+                break;
+            case WINDOW_RESIZE:
+                WindowManager.resizeContent(a, b, c);
+                break;
+            case WINDOW_CLOSE:
+                WindowManager.closeWindow(a);
+                break;
+            case WINDOW_FRONT:
+                WindowList.front(a);
                 break;
             case EXIT:
                 GhidraTheme.exitGhidra();

@@ -13,6 +13,15 @@ interface Backend {
     /** Shows a frame. {@code pixels} is RGBX, {@code w * h} ints. */
     void present(int[] pixels, int w, int h);
 
+    /** True if the backend shows the whole screen even in separate mode (the desktop viewer). */
+    default boolean wholeScreen() {
+        return false;
+    }
+
+    /** Shows rectangle (x, y, w, h) of the screen on host surface {@code key} (a window id). */
+    default void presentRegion(int[] pixels, int stride, int key, int x, int y, int w, int h) {
+    }
+
     /** Copies text to the host clipboard. */
     default void setClipboard(String text) {
     }
@@ -28,6 +37,10 @@ interface Backend {
 
     /** Called when a text component gains or loses focus. */
     default void textFocus(boolean editing) {
+    }
+
+    /** Ghidra's windows changed (see {@link WindowList} for the format). */
+    default void windowsChanged(String list) {
     }
 
     /** Short vibration, e.g. when a press becomes a hold. */

@@ -55,6 +55,16 @@ final class SocketBackend implements Backend {
     }
 
     @Override
+    public boolean wholeScreen() {
+        return true;
+    }
+
+    @Override
+    public void windowsChanged(String list) {
+        System.out.print("ghidroid windows:\n" + list);
+    }
+
+    @Override
     public void present(int[] pixels, int w, int h) {
         DataOutputStream o = out;
         if (o == null) {

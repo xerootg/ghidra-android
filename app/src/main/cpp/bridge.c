@@ -42,9 +42,34 @@ static jmethodID art_on_jvm_exit;
 
 /* ---- surface ---------------------------------------------------------- */
 
+/*
+ * Surfaces by key. Key 0 is the whole screen (single-screen mode); other
+ * keys are Ghidra window ids, each shown in its own Android window
+ * (separate-windows mode, e.g. DeX).
+ */
+#define MAX_SURFACES 32
+typedef struct {
+    int key;
+    ANativeWindow *window;
+    int buf_w, buf_h;
+} surface_t;
+
 static pthread_mutex_t win_lock = PTHREAD_MUTEX_INITIALIZER;
-static ANativeWindow *window;
-static int buf_w, buf_h;
+static surface_t surfaces[MAX_SURFACES];
+
+/* Caller holds win_lock. */
+static surface_t *find_surface(int key, bool create) {
+    surface_t *free_slot = NULL;
+    for (int i = 0; i < MAX_SURFACES; i++) {
+        if (surfaces[i].window != NULL && surfaces[i].key == key) {
+            return &surfaces[i];
+        }
+        if (surfaces[i].window == NULL && free_slot == NULL) {
+            free_slot = &surfaces[i];
+        }
+    }
+    return create ? free_slot : NULL;
+}
 
 /* ---- input queue ------------------------------------------------------ */
 
@@ -104,21 +129,31 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {
 }
 
 JNIEXPORT void JNICALL
-Java_io_github_xerootg_ghidroid_Native_setSurface(JNIEnv *env, jclass clazz, jobject surface) {
+Java_io_github_xerootg_ghidroid_Native_setSurfaceFor(JNIEnv *env, jclass clazz, jint key, jobject surface) {
     (void) clazz;
     pthread_mutex_lock(&win_lock);
-    if (window != NULL) {
-        ANativeWindow_release(window);
-        window = NULL;
+    surface_t *s = find_surface(key, false);
+    if (s != NULL) {
+        ANativeWindow_release(s->window);
+        s->window = NULL;
     }
     if (surface != NULL) {
-        window = ANativeWindow_fromSurface(env, surface);
+        s = find_surface(key, true);
+        if (s != NULL) {
+            s->key = key;
+            s->window = ANativeWindow_fromSurface(env, surface);
+            s->buf_w = s->buf_h = 0;
+        }
     }
-    buf_w = buf_h = 0;
     pthread_mutex_unlock(&win_lock);
     if (surface != NULL) {
         push_event(INPUT_REDRAW, 0, 0, 0, 0);
     }
+}
+
+JNIEXPORT void JNICALL
+Java_io_github_xerootg_ghidroid_Native_setSurface(JNIEnv *env, jclass clazz, jobject surface) {
+    Java_io_github_xerootg_ghidroid_Native_setSurfaceFor(env, clazz, 0, surface);
 }
 
 JNIEXPORT void JNICALL
@@ -329,40 +364,61 @@ Java_io_github_xerootg_ghidroid_Native_launchJvm(JNIEnv *env, jclass clazz, jobj
  * HotSpot side: io.github.xerootg.ghidroid.awt.AndroidBackend
  * ==================================================================== */
 
-JNIEXPORT void JNICALL
-Java_io_github_xerootg_ghidroid_awt_AndroidBackend_nativePresent(JNIEnv *env, jclass clazz,
-                                                                 jintArray pixels, jint w, jint h) {
-    (void) clazz;
+/* Copies the w x h rectangle at (x, y) of the screen (stride ints per row) to surface key. */
+static void present(JNIEnv *env, jintArray pixels, int stride, int key, int x, int y, int w, int h) {
+    if (w <= 0 || h <= 0) {
+        return;
+    }
     pthread_mutex_lock(&win_lock);
-    if (window == NULL) {
+    surface_t *s = find_surface(key, false);
+    if (s == NULL) {
         pthread_mutex_unlock(&win_lock);
         return;
     }
-    if (w != buf_w || h != buf_h) {
-        ANativeWindow_setBuffersGeometry(window, w, h, WINDOW_FORMAT_RGBX_8888);
-        buf_w = w;
-        buf_h = h;
+    if (w != s->buf_w || h != s->buf_h) {
+        ANativeWindow_setBuffersGeometry(s->window, w, h, WINDOW_FORMAT_RGBX_8888);
+        s->buf_w = w;
+        s->buf_h = h;
     }
     ANativeWindow_Buffer b;
-    if (ANativeWindow_lock(window, &b, NULL) == 0) {
+    if (ANativeWindow_lock(s->window, &b, NULL) == 0) {
+        jsize len = (*env)->GetArrayLength(env, pixels);
         const uint32_t *src = (*env)->GetPrimitiveArrayCritical(env, pixels, NULL);
         if (src != NULL) {
             int rows = h < b.height ? h : b.height;
             int cols = w < b.width ? w : b.width;
             uint32_t *dst = b.bits;
-            if (cols == w && b.stride == w) {
-                memcpy(dst, src, (size_t) rows * (size_t) w * 4);
+            if (x == 0 && y == 0 && cols == stride && b.stride == stride
+                    && (size_t) rows * (size_t) stride <= (size_t) len) {
+                memcpy(dst, src, (size_t) rows * (size_t) stride * 4);
             } else {
-                for (int y = 0; y < rows; y++) {
-                    memcpy(dst + (size_t) y * (size_t) b.stride, src + (size_t) y * (size_t) w,
-                           (size_t) cols * 4);
+                for (int r = 0; r < rows; r++) {
+                    size_t off = (size_t) (y + r) * (size_t) stride + (size_t) x;
+                    if (off + (size_t) cols > (size_t) len) {
+                        break;
+                    }
+                    memcpy(dst + (size_t) r * (size_t) b.stride, src + off, (size_t) cols * 4);
                 }
             }
             (*env)->ReleasePrimitiveArrayCritical(env, pixels, (void *) src, JNI_ABORT);
         }
-        ANativeWindow_unlockAndPost(window);
+        ANativeWindow_unlockAndPost(s->window);
     }
     pthread_mutex_unlock(&win_lock);
+}
+
+JNIEXPORT void JNICALL
+Java_io_github_xerootg_ghidroid_awt_AndroidBackend_nativePresent(JNIEnv *env, jclass clazz,
+                                                                 jintArray pixels, jint w, jint h) {
+    (void) clazz;
+    present(env, pixels, w, 0, 0, 0, w, h);
+}
+
+JNIEXPORT void JNICALL
+Java_io_github_xerootg_ghidroid_awt_AndroidBackend_nativePresentRegion(JNIEnv *env, jclass clazz,
+        jintArray pixels, jint stride, jint key, jint x, jint y, jint w, jint h) {
+    (void) clazz;
+    present(env, pixels, stride, key, x, y, w, h);
 }
 
 JNIEXPORT void JNICALL

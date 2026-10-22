@@ -52,6 +52,26 @@ final class WindowManager {
         if (!(e.getSource() instanceof Window w)) {
             return;
         }
+        if (id == WindowEvent.WINDOW_OPENED || id == WindowEvent.WINDOW_CLOSED
+                || id == WindowEvent.WINDOW_ACTIVATED || id == WindowEvent.WINDOW_DEACTIVATED
+                || id == ComponentEvent.COMPONENT_SHOWN || id == ComponentEvent.COMPONENT_HIDDEN
+                || id == ComponentEvent.COMPONENT_RESIZED || id == ComponentEvent.COMPONENT_MOVED) {
+            WindowList.changed();
+        }
+        if (separate) {
+            if (id == WindowEvent.WINDOW_OPENED || id == ComponentEvent.COMPONENT_SHOWN
+                    || id == WindowEvent.WINDOW_CLOSED || id == ComponentEvent.COMPONENT_HIDDEN
+                    || id == ComponentEvent.COMPONENT_RESIZED || id == ComponentEvent.COMPONENT_MOVED) {
+                if (WindowList.managed(w) || id == WindowEvent.WINDOW_CLOSED
+                        || id == ComponentEvent.COMPONENT_HIDDEN) {
+                    layoutSoon();
+                } else if (w.isShowing()) {
+                    keepInsideOwner(w);
+                }
+                exposeAll();
+            }
+            return;
+        }
         if (id == WindowEvent.WINDOW_OPENED || id == ComponentEvent.COMPONENT_SHOWN) {
             place(w);
             exposeAll();
@@ -94,7 +114,146 @@ final class WindowManager {
         }
     }
 
+    // ---- separate windows (DeX) -------------------------------------------------
+
+    /**
+     * Separate-windows mode: every frame and dialog is shown in its own host
+     * window (Android windows in DeX). They keep their own sizes and are laid
+     * out side by side on the screen, with gaps, so that each host can show
+     * its window's rectangle without others on top. Popups and tooltips stay
+     * inside the window they belong to.
+     */
+    static volatile boolean separate;
+
+    /** Space between windows on the screen, so popups that spill over stay hidden. */
+    private static final int GUTTER = 64;
+
+    /** Window ids that currently have a host surface (separate mode). */
+    static final java.util.Set<Integer> hosted = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    private static final javax.swing.Timer LAYOUT = new javax.swing.Timer(30, e -> layout());
+
+    static {
+        LAYOUT.setRepeats(false);
+    }
+
+    static void setSeparate(boolean on) {
+        EventQueue.invokeLater(() -> {
+            if (separate == on) {
+                return;
+            }
+            separate = on;
+            if (on) {
+                layout();
+            } else {
+                Display.resize(singleWidth, singleHeight);
+                for (Window w : Window.getWindows()) {
+                    if (w.isShowing()) {
+                        place(w);
+                    }
+                }
+            }
+            WindowList.changed();
+            exposeAll();
+        });
+    }
+
+    /** Screen size to go back to when leaving separate mode. */
+    static volatile int singleWidth = 1280, singleHeight = 800;
+
+    private static void layoutSoon() {
+        LAYOUT.restart();
+    }
+
+    /** Places managed windows side by side and sizes the screen to fit them. EDT. */
+    static void layout() {
+        if (!separate) {
+            return;
+        }
+        int x = 0;
+        int h = 240;
+        for (Window w : WindowList.windows()) {
+            Rectangle b = w.getBounds();
+            if (b.x != x || b.y != 0) {
+                w.setLocation(x, 0);
+            }
+            x += b.width + GUTTER;
+            h = Math.max(h, b.height);
+        }
+        int width = Math.max(x, 320);
+        if (width != Display.getWidth() || h != Display.getHeight()) {
+            Display.resizeOnly(width, h);
+        }
+        WindowList.changed();
+        exposeAll();
+    }
+
+    /** The managed window a popup or tooltip belongs to, or null. */
+    private static Window managedOwner(Window w) {
+        for (Window o = w.getOwner(); o != null; o = o.getOwner()) {
+            if (WindowList.managed(o)) {
+                return o;
+            }
+        }
+        return null;
+    }
+
+    /** Moves a popup or tooltip back inside its window's content, where its host can show it. */
+    private static void keepInsideOwner(Window w) {
+        Window owner = managedOwner(w);
+        if (owner == null) {
+            return;
+        }
+        Rectangle c = contentBounds(owner);
+        Rectangle b = w.getBounds();
+        int nx = Math.max(c.x, Math.min(b.x, c.x + c.width - b.width));
+        int ny = Math.max(c.y, Math.min(b.y, c.y + c.height - b.height));
+        if (nx != b.x || ny != b.y) {
+            w.setLocation(nx, ny);
+        }
+    }
+
+    /** A window's bounds without Cacio's title bar and border (the host draws its own). */
+    static Rectangle contentBounds(Window w) {
+        Rectangle b = w.getBounds();
+        java.awt.Insets in = w.getInsets();
+        return new Rectangle(b.x + in.left, b.y + in.top,
+                Math.max(1, b.width - in.left - in.right), Math.max(1, b.height - in.top - in.bottom));
+    }
+
+    /** The host resized window id's content area to w x h. */
+    static void resizeContent(int id, int w, int h) {
+        EventQueue.invokeLater(() -> {
+            Window win = WindowList.byId(id);
+            if (win == null || !win.isShowing() || w <= 0 || h <= 0) {
+                return;
+            }
+            java.awt.Insets in = win.getInsets();
+            int nw = w + in.left + in.right;
+            int nh = h + in.top + in.bottom;
+            if (win.getWidth() != nw || win.getHeight() != nh) {
+                win.setSize(nw, nh);
+                win.validate();
+            }
+            layout();
+        });
+    }
+
+    /** The host's close button: ask the window to close, as its own close button would. */
+    static void closeWindow(int id) {
+        EventQueue.invokeLater(() -> {
+            Window win = WindowList.byId(id);
+            if (win != null && win.isShowing()) {
+                win.dispatchEvent(new WindowEvent(win, WindowEvent.WINDOW_CLOSING));
+            }
+        });
+    }
+
     static void place(Window w) {
+        if (separate) {
+            layoutSoon();
+            return;
+        }
         Rectangle screen = Display.getBounds();
         if (w instanceof Frame f && f.isResizable()) {
             if (!w.getBounds().equals(screen)) {

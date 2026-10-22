@@ -19,6 +19,7 @@ public final class Native {
     static final int HOST_TEXT_FOCUS = 3;
     static final int HOST_CURSOR = 4;
     static final int HOST_HAPTIC = 5;
+    static final int HOST_WINDOWS = 6;
     static final int QUERY_CLIPBOARD = 1;
 
     /** Receives calls the JVM makes into Android. */
@@ -40,6 +41,9 @@ public final class Native {
     }
 
     static native void setSurface(Surface surface);
+
+    /** Surface for Ghidra window {@code key} (separate windows); key 0 is the whole screen. */
+    static native void setSurfaceFor(int key, Surface surface);
 
     static native void pushEvent(int type, int a, int b, int c, int d);
 

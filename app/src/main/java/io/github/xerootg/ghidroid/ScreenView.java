@@ -29,7 +29,8 @@ final class ScreenView extends SurfaceView {
     // Input event types; must match io.github.xerootg.ghidroid.awt.Input.
     static final int MOVE = 1, PRESS = 2, RELEASE = 3, WHEEL = 4, KEY_DOWN = 5, KEY_UP = 6,
             TYPED = 7, RESIZE = 8, LEAVE = 9, TOUCH_DOWN = 20, TOUCH_MOVE = 21, TOUCH_UP = 22,
-            TOUCH_CANCEL = 23, TOUCH_SCROLL = 24, TOUCH_FLING = 25, WINDOWS = 30, THEME = 31, EXIT = 32;
+            TOUCH_CANCEL = 23, TOUCH_SCROLL = 24, TOUCH_FLING = 25, WINDOWS = 30, THEME = 31, EXIT = 32, WINDOW_FRONT = 33,
+            MODE = 34, HOST_ATTACH = 35, HOST_DETACH = 36, WINDOW_RESIZE = 37, WINDOW_CLOSE = 38;
     static final int BUTTON1 = 1, BUTTON2 = 2, BUTTON3 = 3;
 
     /** Pen input suppresses finger input for this long (palm rejection). */
@@ -69,16 +70,24 @@ final class ScreenView extends SurfaceView {
         scale = s;
     }
 
+    /** Where this view's top-left is on Ghidra's screen (separate windows). */
+    private volatile int originX, originY;
+
+    void setOrigin(int x, int y) {
+        originX = x;
+        originY = y;
+    }
+
     void setModifiers(Modifiers m) {
         modifiers = m;
     }
 
     private int x(MotionEvent e, int i) {
-        return Math.round(e.getX(i) / scale);
+        return Math.round(e.getX(i) / scale) + originX;
     }
 
     private int y(MotionEvent e, int i) {
-        return Math.round(e.getY(i) / scale);
+        return Math.round(e.getY(i) / scale) + originY;
     }
 
     private static void push(int t, int a, int b, int c, int d) {
@@ -277,7 +286,7 @@ final class ScreenView extends SurfaceView {
                     int dx = Math.round((cx - lastCx) / scale * 100);
                     int dy = Math.round((cy - lastCy) / scale * 100);
                     if (dx != 0 || dy != 0) {
-                        push(TOUCH_SCROLL, Math.round(cx / scale), Math.round(cy / scale), dx, dy);
+                        push(TOUCH_SCROLL, Math.round(cx / scale) + originX, Math.round(cy / scale) + originY, dx, dy);
                         lastCx = cx;
                         lastCy = cy;
                     }

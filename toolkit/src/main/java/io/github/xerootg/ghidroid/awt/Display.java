@@ -93,11 +93,29 @@ public final class Display {
      * {@link WindowManager}.
      */
     public static synchronized void resize(int w, int h) {
-        if (w <= 0 || h <= 0 || (w == getWidth() && h == getHeight())) {
+        if (w <= 0 || h <= 0) {
+            return;
+        }
+        if (WindowManager.separate) {
+            // In separate mode the screen is sized to the windows; this is the
+            // single-screen size to return to.
+            WindowManager.singleWidth = w;
+            WindowManager.singleHeight = h;
+            return;
+        }
+        if (w == getWidth() && h == getHeight()) {
+            return;
+        }
+        resizeOnly(w, h);
+        WindowManager.screenResized(w, h);
+    }
+
+    /** Changes the buffer size without re-placing windows. */
+    static synchronized void resizeOnly(int w, int h) {
+        if (w == getWidth() && h == getHeight()) {
             return;
         }
         FullScreenWindowFactory.setScreenDimension(w, h);
         allocate(w, h);
-        WindowManager.screenResized(w, h);
     }
 }

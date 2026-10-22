@@ -198,6 +198,19 @@ public final class MainActivity extends Activity {
         addScaleSetting(col);
         addHeapSetting(col);
         addJvmArgsSetting(col);
+        Button windowsMode = button(col, "", null);
+        Runnable showWindows = () -> windowsMode.setText(getString(R.string.windows_mode, getString(
+                Prefs.WINDOWS_SEPARATE.equals(prefs.windowsMode()) ? R.string.windows_separate
+                        : Prefs.WINDOWS_SINGLE.equals(prefs.windowsMode()) ? R.string.windows_single
+                        : R.string.windows_auto)));
+        windowsMode.setOnClickListener(v -> {
+            String m = prefs.windowsMode();
+            prefs.setWindowsMode(Prefs.WINDOWS_AUTO.equals(m) ? Prefs.WINDOWS_SEPARATE
+                    : Prefs.WINDOWS_SEPARATE.equals(m) ? Prefs.WINDOWS_SINGLE : Prefs.WINDOWS_AUTO);
+            showWindows.run();
+            sendBroadcast(new Intent(GhidraActivity.ACTION_THEME_CHANGED).setPackage(getPackageName()));
+        });
+        showWindows.run();
         Button keyBar = button(col, "", null);
         Runnable showKeyBar = () -> keyBar.setText(getString(R.string.keybar_mode, getString(
                 Prefs.KEYBAR_SHOWN.equals(prefs.keyBarMode()) ? R.string.keybar_shown

@@ -13,6 +13,8 @@ final class AndroidBackend implements Backend {
 
     private static native void nativePresent(int[] pixels, int w, int h);
 
+    private static native void nativePresentRegion(int[] pixels, int stride, int key, int x, int y, int w, int h);
+
     /** Blocks for the next input event; fills {@code out[0..4]}. */
     private static native void nativeNextEvent(int[] out);
 
@@ -25,6 +27,7 @@ final class AndroidBackend implements Backend {
     private static final int HOST_TEXT_FOCUS = 3;
     private static final int HOST_CURSOR = 4;
     private static final int HOST_HAPTIC = 5;
+    private static final int HOST_WINDOWS = 6;
     private static final int QUERY_CLIPBOARD = 1;
 
     AndroidBackend(String lib) {
@@ -54,6 +57,11 @@ final class AndroidBackend implements Backend {
     }
 
     @Override
+    public void presentRegion(int[] pixels, int stride, int key, int x, int y, int w, int h) {
+        nativePresentRegion(pixels, stride, key, x, y, w, h);
+    }
+
+    @Override
     public void setClipboard(String text) {
         nativeHostCall(HOST_CLIPBOARD_SET, 0, text);
     }
@@ -71,6 +79,11 @@ final class AndroidBackend implements Backend {
     @Override
     public void textFocus(boolean editing) {
         nativeHostCall(HOST_TEXT_FOCUS, editing ? 1 : 0, null);
+    }
+
+    @Override
+    public void windowsChanged(String list) {
+        nativeHostCall(HOST_WINDOWS, 0, list);
     }
 
     @Override
