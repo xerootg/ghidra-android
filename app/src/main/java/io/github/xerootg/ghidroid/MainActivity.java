@@ -26,6 +26,7 @@ import android.widget.ProgressBar;
 import android.widget.ScrollView;
 import android.widget.SeekBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.io.File;
 import java.io.InputStream;
@@ -48,6 +49,8 @@ public final class MainActivity extends Activity {
     private TextView progressText;
     /** Progress or failure of building the bundled Touch UI extension. */
     private String bundledMessage;
+    /** Launch was asked for while Touch UI was building. */
+    private boolean launchPending;
     private ProgressBar progress;
     private Button launch;
     private Button download;
@@ -484,6 +487,10 @@ public final class MainActivity extends Activity {
             BundledExtensions.ensure(this, msg -> {
                 bundledMessage = msg;
                 refresh();
+                if (launchPending && !BundledExtensions.isRunning()) {
+                    launchPending = false;
+                    launch();
+                }
             });
         }
         launch.setEnabled(!busy && runtime && ghidra);
@@ -497,6 +504,13 @@ public final class MainActivity extends Activity {
     private void launch() {
         if (!prefs.extraJvmArgs().isEmpty() && getCurrentFocus() instanceof EditText) {
             getCurrentFocus().clearFocus();
+        }
+        if (BundledExtensions.pending(this)) {
+            // Ghidra loads extensions at startup: let Touch UI finish first.
+            launchPending = true;
+            Toast.makeText(this, R.string.bundled_wait, Toast.LENGTH_SHORT).show();
+            refresh();
+            return;
         }
         startActivity(new Intent(this, GhidraActivity.class)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));

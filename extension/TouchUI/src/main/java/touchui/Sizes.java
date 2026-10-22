@@ -37,7 +37,8 @@ final class Sizes {
 	private static final Map<String, Object> originalDefaults = new java.util.HashMap<>();
 
 	private static final AWTEventListener ADDED = e -> {
-		if (on && e instanceof ContainerEvent ce && ce.getID() == ContainerEvent.COMPONENT_ADDED) {
+		if (on && e instanceof ContainerEvent ce && ce.getID() == ContainerEvent.COMPONENT_ADDED
+				&& !(ce.getContainer() instanceof javax.swing.JPopupMenu)) {
 			Component child = ce.getChild();
 			SwingUtilities.invokeLater(() -> walk(child));
 		}
@@ -82,8 +83,12 @@ final class Sizes {
 		else if (c instanceof JTable t) {
 			apply(t, t.getRowHeight(), t::setRowHeight);
 		}
-		else if (c instanceof JMenuItem m) {
-			m.updateUI();
+		else if (c instanceof JMenuItem m && !(m.getParent() instanceof javax.swing.JMenuBar)
+				&& !m.isShowing()) {
+			// Only closed menus: changing an open menu under the pointer
+			// makes the release land on an item. New menus get the margins
+			// from the UI defaults set above.
+			margin(m);
 		}
 		if (c instanceof javax.swing.JMenu menu) {
 			for (Component item : menu.getMenuComponents()) {
@@ -94,6 +99,22 @@ final class Sizes {
 			for (Component child : k.getComponents()) {
 				walk(child);
 			}
+		}
+	}
+
+	private static final Map<JMenuItem, Insets> originalMargins = new WeakHashMap<>();
+
+	private static void margin(JMenuItem m) {
+		Insets i = m.getMargin();
+		if (on) {
+			if (i == null || i.top < 8) {
+				originalMargins.putIfAbsent(m, i);
+				Insets b = i != null ? i : new Insets(2, 6, 2, 6);
+				m.setMargin(new Insets(8, b.left, 8, b.right));
+			}
+		}
+		else if (originalMargins.containsKey(m)) {
+			m.setMargin(originalMargins.remove(m));
 		}
 	}
 

@@ -10,6 +10,7 @@
     <string name="scale_label">Display scale: %1$s× (default %2$.2f×). Takes effect when Ghidra starts.</string>
     <string name="update_available">Version %1$s of this app is available (you have %2$s). Tap to open the release.</string>
     <string name="bundled_building">… Building the Touch UI extension for this Ghidra (about a minute)</string>
+    <string name="bundled_wait">Starting Ghidra once Touch UI is built…</string>
     <string name="bundled_failed">✗ Could not build the Touch UI extension; see Extensions for the log</string>
     <string name="windows_mode">Ghidra windows: %1$s</string>
     <string name="windows_auto">separate Android windows in DeX and freeform, one screen otherwise</string>

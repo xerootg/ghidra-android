@@ -41,8 +41,18 @@ final class BundledExtensions {
     private BundledExtensions() {
     }
 
-    private static String expectedStamp(Installer inst) {
-        return BuildConfig.VERSION_CODE + ":" + inst.ghidraVersion();
+    /** App build, Ghidra version and a checksum of the bundled source. */
+    private static String expectedStamp(Context ctx, Installer inst) {
+        java.util.zip.CRC32 crc = new java.util.zip.CRC32();
+        try (InputStream in = ctx.getAssets().open(ASSET)) {
+            byte[] buf = new byte[8192];
+            for (int n; (n = in.read(buf)) > 0; ) {
+                crc.update(buf, 0, n);
+            }
+        } catch (IOException e) {
+            return BuildConfig.VERSION_CODE + ":" + inst.ghidraVersion();
+        }
+        return BuildConfig.VERSION_CODE + ":" + inst.ghidraVersion() + ":" + Long.toHexString(crc.getValue());
     }
 
     private static File stampFile(Extensions ext) {
@@ -56,11 +66,16 @@ final class BundledExtensions {
             return false;
         }
         String have = Installer.readText(stampFile(new Extensions(inst)));
-        return have == null || !have.trim().equals(expectedStamp(inst));
+        return have == null || !have.trim().equals(expectedStamp(ctx, inst));
     }
 
     static boolean isRunning() {
         return running;
+    }
+
+    /** A build is running or about to start; Ghidra should wait for it. */
+    static boolean pending(Context ctx) {
+        return running || (!failed && needed(ctx));
     }
 
     /**
@@ -118,7 +133,7 @@ final class BundledExtensions {
                                 // An older copy in the user folder would load twice.
                                 Installer.deleteTree(new File(ext.userDir(), NAME));
                                 try (OutputStream o = new FileOutputStream(stampFile(ext))) {
-                                    o.write(expectedStamp(inst).getBytes(StandardCharsets.UTF_8));
+                                    o.write(expectedStamp(app, inst).getBytes(StandardCharsets.UTF_8));
                                 }
                                 Log.i(TAG, "Touch UI installed");
                                 finish(ui, status, null);
