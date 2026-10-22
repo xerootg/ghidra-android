@@ -137,6 +137,15 @@ final class Extensions {
      * Ghidra refuses to load a mismatch).
      */
     Info install(File zip, boolean forceVersion) throws IOException {
+        return install(zip, forceVersion, userDir());
+    }
+
+    /** Ghidra's own extensions folder: loaded for every user, never "new plugins found". */
+    File systemDir() {
+        return new File(inst.ghidra, "Ghidra/Extensions");
+    }
+
+    Info install(File zip, boolean forceVersion, File into) throws IOException {
         Info info = describeZip(zip);
         if (info == null) {
             throw new IOException("not a Ghidra extension (no NAME/extension.properties)");
@@ -150,8 +159,9 @@ final class Extensions {
                     root = n.substring(0, n.indexOf('/'));
                 }
             }
-            File dest = new File(userDir(), info.name);
-            File stage = new File(userDir(), "." + info.name + ".new");
+            into.mkdirs();
+            File dest = new File(into, info.name);
+            File stage = new File(into, "." + info.name + ".new");
             Installer.deleteTree(stage);
             stage.mkdirs();
             String stagePath = stage.getCanonicalPath() + File.separator;

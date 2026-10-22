@@ -20,12 +20,18 @@ final class TouchIcons implements Icon {
 	/** Focus layout: one big pane with a narrow strip beside it. */
 	static final Icon FOCUS = new TouchIcons(true);
 	/** Panels: a list. */
-	static final Icon PANELS = new TouchIcons(false);
+	static final Icon PANELS = new TouchIcons(1);
+	/** Command palette: a magnifier. */
+	static final Icon SEARCH = new TouchIcons(2);
 
-	private final boolean focus;
+	private final int kind;
 
 	private TouchIcons(boolean focus) {
-		this.focus = focus;
+		this(focus ? 0 : 1);
+	}
+
+	private TouchIcons(int kind) {
+		this.kind = kind;
 	}
 
 	@Override
@@ -46,7 +52,12 @@ final class TouchIcons implements Icon {
 		g.setColor(fg != null ? fg : Color.GRAY);
 		g.setStroke(new BasicStroke(1.5f));
 		g.translate(x, y);
-		if (focus) {
+		if (kind == 2) {
+			g.drawOval(2, 2, 8, 8);
+			g.setStroke(new BasicStroke(2.2f));
+			g.drawLine(10, 10, 14, 14);
+		}
+		else if (kind == 0) {
 			g.drawRoundRect(1, 2, 14, 12, 3, 3);
 			g.drawLine(5, 2, 5, 14);
 			g.fillRect(7, 5, 6, 1);

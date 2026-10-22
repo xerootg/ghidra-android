@@ -22,7 +22,9 @@ import java.util.function.Consumer;
 /**
  * Extensions that ship with the app as source (Touch UI). They are built on
  * the device against whichever Ghidra is installed, so they work with any
- * Ghidra version, and rebuilt when the app or Ghidra changes.
+ * Ghidra version, and rebuilt when the app or Ghidra changes. They go into
+ * Ghidra's own Ghidra/Extensions folder, which Ghidra loads without asking
+ * to configure new plugins; Touch UI then turns itself on in CodeBrowser.
  */
 final class BundledExtensions {
 
@@ -44,7 +46,7 @@ final class BundledExtensions {
     }
 
     private static File stampFile(Extensions ext) {
-        return new File(new File(ext.userDir(), NAME), STAMP);
+        return new File(new File(ext.systemDir(), NAME), STAMP);
     }
 
     /** Whether Touch UI needs (re)building for this app and Ghidra. */
@@ -112,7 +114,9 @@ final class BundledExtensions {
                         }
                         IO.execute(() -> {
                             try {
-                                ext.install(out, true);
+                                ext.install(out, true, ext.systemDir());
+                                // An older copy in the user folder would load twice.
+                                Installer.deleteTree(new File(ext.userDir(), NAME));
                                 try (OutputStream o = new FileOutputStream(stampFile(ext))) {
                                     o.write(expectedStamp(inst).getBytes(StandardCharsets.UTF_8));
                                 }

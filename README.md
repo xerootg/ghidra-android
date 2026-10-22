@@ -98,24 +98,32 @@ Theme changes apply to a running Ghidra immediately.
 The screen follows rotation, split screen, DeX windows and the soft keyboard;
 Ghidra's windows are re-laid out to fit.
 
-### Touch UI (focus layout)
+### Touch UI
 
-The app builds and installs its own Ghidra extension, Touch UI, from source the
-first time Ghidra is installed (and again after app or Ghidra updates). When
-the CodeBrowser first opens with it, Ghidra asks to configure new extension
-plugins: answer Yes and tick TouchUIPlugin.
+Touch UI is a Ghidra extension that ships with the app and is on by default.
+The app builds it on the device against the installed Ghidra, so it follows
+Ghidra upgrades, and it switches itself on in CodeBrowser (no "new plugins"
+prompt). It uses only Ghidra's public plugin API and Swing, so the same
+extension works on desktop Ghidra.
 
-- **Focus layout** (the first toolbar button, Window → Focus Layout, or
-  Ctrl+Shift+F): shows only the listing and the decompiler, and the listing
-  drops its raw bytes column. Turn it off to put every panel back.
-- **Panels** (the second button, or Ctrl+Shift+P): lists the other panels
-  (Symbol Tree, Data Types, Console, ...). In the focus layout, a panel opened
-  from here acts as a drawer and hides again when you tap back into the code.
+- **Focus layout** (Window → Focus Layout, Ctrl+Shift+Space): only the
+  listing and the decompiler, split evenly. The listing drops its raw bytes
+  column, and the toolbar gives way to a row of big buttons along the bottom:
+  Back, Forward, Go to, Commands, Panels, Undo, Redo, Save, Show all.
+- **Panels** (Ctrl+Shift+O): every other panel (Symbol Tree, Data Types,
+  Console, ...). In the focus layout, a panel opened from here is a drawer: it
+  hides again as soon as you tap back into the code.
+- **Commands** (Ctrl+Shift+P): one search box for every command that can run
+  where you are, recent ones first, plus "go to" for addresses and labels.
+- **Comfortable sizes**: taller rows in trees and tables and roomier menus.
 
-Touch UI uses only Ghidra's public plugin API, so it also works on desktop
-Ghidra: build `extension/TouchUI` with Gradle
-(`gradle -PGHIDRA_INSTALL_DIR=...`) and install the zip with File → Install
-Extensions.
+Each part can be turned off under Edit → Tool Options → Touch UI. Removing the
+plugin from a tool (File → Configure) keeps it removed.
+
+On desktop, build `extension/TouchUI` with Gradle
+(`gradle -PGHIDRA_INSTALL_DIR=...`), install the zip with File → Install
+Extensions, and start Ghidra with `-Dtouchui.touch=true` if you want the touch
+defaults.
 
 ### Extensions and plugins
 

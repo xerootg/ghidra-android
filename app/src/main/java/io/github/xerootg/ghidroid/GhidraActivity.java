@@ -475,6 +475,8 @@ public final class GhidraActivity extends Activity implements Native.Host, Surfa
         args.add("-Dghidroid.theme.dark=" + inst.themeFile(Installer.THEME_DARK_FILE));
         args.add("-Dghidroid.theme.black=" + inst.themeFile(Installer.THEME_BLACK_FILE));
         args.add("-Dghidroid.theme.light=" + Installer.THEME_LIGHT_CLASS);
+        // Touch UI (the bundled extension): focus layout and touch sizes by default.
+        args.add("-Dtouchui.touch=true");
         args.add("-Djava.system.class.loader=ghidra.GhidraClassLoader");
         args.add("-Dfile.encoding=UTF8");
         args.add("-Duser.home=" + inst.home);
