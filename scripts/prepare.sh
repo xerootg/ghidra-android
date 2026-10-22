@@ -85,6 +85,8 @@ javac -nowarn --release 21 --patch-module java.compiler="$root/compiler-patch/sr
 rm -rf "$root/builder/build" && mkdir -p "$root/builder/build/classes"
 javac -nowarn --release 21 -d "$root/builder/build/classes" $(find "$root/builder/src/main/java" -name '*.java')
 (cd "$root/builder/build/classes" && rm -f "$assets/ghidroid-tools.jar" && jar --create --file "$assets/ghidroid-tools.jar" .)
+# Bundled extensions ship as source and are built on the device.
+(cd "$root/extension" && rm -f "$assets/TouchUI-src.zip" && zip -qr -X "$assets/TouchUI-src.zip" TouchUI -x 'TouchUI/build/*' 'TouchUI/dist/*')
 
 # --- fonts -------------------------------------------------------------------
 fetch "$FONTS_URL" "$cache/dejavu-fonts-ttf-2.37.zip"

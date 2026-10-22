@@ -1,0 +1,16 @@
+// Builds with Ghidra's own extension build:
+//   gradle -PGHIDRA_INSTALL_DIR=/path/to/ghidra_12.x_PUBLIC
+// (The Android app builds it with its on-device ExtensionBuilder instead.)
+def ghidraInstallDir
+if (System.env.GHIDRA_INSTALL_DIR) {
+	ghidraInstallDir = System.env.GHIDRA_INSTALL_DIR
+}
+else if (project.hasProperty("GHIDRA_INSTALL_DIR")) {
+	ghidraInstallDir = project.getProperty("GHIDRA_INSTALL_DIR")
+}
+if (ghidraInstallDir) {
+	apply from: new File(ghidraInstallDir).getCanonicalPath() + "/support/buildExtension.gradle"
+}
+else {
+	throw new GradleException("GHIDRA_INSTALL_DIR is not defined!")
+}

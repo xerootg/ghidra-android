@@ -98,6 +98,25 @@ Theme changes apply to a running Ghidra immediately.
 The screen follows rotation, split screen, DeX windows and the soft keyboard;
 Ghidra's windows are re-laid out to fit.
 
+### Touch UI (focus layout)
+
+The app builds and installs its own Ghidra extension, Touch UI, from source the
+first time Ghidra is installed (and again after app or Ghidra updates). When
+the CodeBrowser first opens with it, Ghidra asks to configure new extension
+plugins: answer Yes and tick TouchUIPlugin.
+
+- **Focus layout** (the first toolbar button, Window → Focus Layout, or
+  Ctrl+Shift+F): shows only the listing and the decompiler, and the listing
+  drops its raw bytes column. Turn it off to put every panel back.
+- **Panels** (the second button, or Ctrl+Shift+P): lists the other panels
+  (Symbol Tree, Data Types, Console, ...). In the focus layout, a panel opened
+  from here acts as a drawer and hides again when you tap back into the code.
+
+Touch UI uses only Ghidra's public plugin API, so it also works on desktop
+Ghidra: build `extension/TouchUI` with Gradle
+(`gradle -PGHIDRA_INSTALL_DIR=...`) and install the zip with File → Install
+Extensions.
+
 ### Extensions and plugins
 
 **Extensions…** on the start screen manages Ghidra extensions without a

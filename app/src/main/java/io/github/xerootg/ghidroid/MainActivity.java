@@ -46,6 +46,8 @@ public final class MainActivity extends Activity {
 
     private TextView status;
     private TextView progressText;
+    /** Progress or failure of building the bundled Touch UI extension. */
+    private String bundledMessage;
     private ProgressBar progress;
     private Button launch;
     private Button download;
@@ -474,7 +476,16 @@ public final class MainActivity extends Activity {
         sb.append('\n');
         boolean files = Environment.isExternalStorageManager();
         sb.append(files ? getString(R.string.storage_ok) : getString(R.string.storage_missing));
+        if (bundledMessage != null) {
+            sb.append('\n').append(bundledMessage);
+        }
         status.setText(sb);
+        if (!busy && ghidra && runtime) {
+            BundledExtensions.ensure(this, msg -> {
+                bundledMessage = msg;
+                refresh();
+            });
+        }
         launch.setEnabled(!busy && runtime && ghidra);
         download.setEnabled(!busy);
         importZip.setEnabled(!busy);

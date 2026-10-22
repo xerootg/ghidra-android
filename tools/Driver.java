@@ -6,7 +6,7 @@
  * Reads commands from stdin, one per line:
  *   click X Y | rclick X Y | dclick X Y | move X Y | drag X1 Y1 X2 Y2
  *   wheel X Y AMOUNT | key VK [MODS] | type TEXT | resize W H
- *   sleep MS | snap FILE.png
+ *   sleep MS | snap FILE.png | raw TYPE A B C D (any Input event)
  *   java tools/Driver.java [port] < commands
  */
 import java.awt.event.KeyEvent;
@@ -96,6 +96,7 @@ public class Driver {
                         }
                     }
                     case "resize" -> send(8, i(p[0]), i(p[1]), 0, 0);
+                    case "raw" -> send(i(p[0]), i(p[1]), i(p[2]), i(p[3]), i(p[4]));
                     case "sleep" -> Thread.sleep(Long.parseLong(p[0]));
                     case "snap" -> {
                         Thread.sleep(150);

@@ -11,6 +11,7 @@ adb=(adb ${serial:+-s "$serial"})
 rm -rf "$root/builder/build" && mkdir -p "$root/builder/build/classes"
 javac -nowarn --release 21 -d "$root/builder/build/classes" $(find "$root/builder/src/main/java" -name '*.java')
 (cd "$root/builder/build/classes" && rm -f "$root/app/src/main/assets/ghidroid-tools.jar" && jar --create --file "$root/app/src/main/assets/ghidroid-tools.jar" .)
+(cd "$root/extension" && rm -f "$root/app/src/main/assets/TouchUI-src.zip" && zip -qr -X "$root/app/src/main/assets/TouchUI-src.zip" TouchUI -x 'TouchUI/build/*' 'TouchUI/dist/*')
 (cd "$root" && ./gradlew -q assembleDebug)
 pkg=io.github.xerootg.ghidroid
 "${adb[@]}" shell am force-stop "$pkg"
